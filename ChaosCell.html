@@ -1,0 +1,4148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<meta name="theme-color" content="#030208" />
+<title>The Primordial Asura of Chaos — Part I · The Dantian</title>
+<style>
+:root{
+  --void:#030208;
+  --gold:#c9a227;
+  --gold-hi:#e8b64c;
+  --gold-pale:#ffe6a8;
+  --bone:#e8dcc8;
+  --bone-dim:#a89b86;
+  --ash:#5c5348;
+  --crimson:#d63a3f;
+  --azure:#4a7bff;
+  --violet:#b07cff;
+  --ui:"Cormorant Garamond","EB Garamond",Georgia,"Times New Roman",serif;
+  --mono:"Iosevka","Fira Code",ui-monospace,Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{
+  width:100%;height:100%;overflow:hidden;
+  background:var(--void);color:var(--bone);
+  font-family:var(--ui);font-size:15px;
+  -webkit-font-smoothing:antialiased;
+  user-select:none;cursor:default;
+}
+canvas{display:block;}
+#gl{position:fixed;inset:0;width:100%;height:100%;}
+
+#vignette{
+  position:fixed;inset:0;pointer-events:none;z-index:20;mix-blend-mode:multiply;
+  background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 30%,rgba(0,0,0,.55) 78%,rgba(0,0,0,.92) 100%);
+}
+#grain{
+  position:fixed;inset:-50%;pointer-events:none;z-index:21;
+  opacity:.038;mix-blend-mode:screen;
+  animation:grainShift .55s steps(3) infinite;
+}
+@keyframes grainShift{
+  0%{transform:translate(0,0)}
+  33%{transform:translate(-2%,1%)}
+  66%{transform:translate(1%,-2%)}
+  100%{transform:translate(0,0)}
+}
+
+#hud{position:fixed;inset:0;pointer-events:none;z-index:30;}
+
+#identity{
+  position:absolute;top:22px;left:26px;
+  font-size:13px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--bone-dim);line-height:1.7;
+}
+#identity .nm{font-size:17px;color:var(--bone);letter-spacing:.24em;}
+#identity .rc{font-size:10.5px;color:var(--ash);letter-spacing:.20em;margin-top:5px;}
+#identity .rule{
+  margin-top:14px;width:200px;height:1px;
+  background:linear-gradient(90deg,var(--gold),rgba(201,162,39,0));
+}
+
+#attributes{
+  position:absolute;left:26px;top:50%;transform:translateY(-50%);
+  width:260px;display:flex;flex-direction:column;gap:22px;
+}
+.attr .lbl{
+  font-size:10px;letter-spacing:.32em;text-transform:uppercase;
+  color:var(--ash);margin-bottom:8px;
+  display:flex;justify-content:space-between;
+}
+.attr .lbl b{
+  color:var(--bone-dim);font-weight:400;
+  font-variant-numeric:tabular-nums;letter-spacing:.12em;
+}
+.attr .bar{
+  position:relative;height:2px;background:rgba(255,255,255,.05);overflow:hidden;
+}
+.attr .bar i{
+  position:absolute;left:0;top:0;bottom:0;width:0%;
+  transition:width .35s ease-out;box-shadow:0 0 12px currentColor;
+}
+#barAttention   i{background:linear-gradient(90deg,#6a4a12,#ffe6a8);color:#ffe6a8;}
+#barResonance   i{background:linear-gradient(90deg,#2a1450,#b07cff);color:#b07cff;}
+#barDepth       i{background:linear-gradient(90deg,#0f2038,#4a9fd4);color:#4a9fd4;}
+#barRecognition i{background:linear-gradient(90deg,#5a0a0e,#d63a3f);color:#d63a3f;}
+.attr .sub{
+  margin-top:5px;font-size:10px;letter-spacing:.14em;
+  color:var(--ash);font-style:italic;height:12px;
+}
+
+#focus{
+  position:absolute;left:50%;bottom:80px;transform:translateX(-50%);
+  text-align:center;font-size:12px;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--bone-dim);
+  text-shadow:0 0 14px #000;opacity:0;transition:opacity .4s;
+}
+#focus.on{opacity:.85;}
+#focus b{color:var(--gold-hi);font-weight:400;}
+
+#hint{
+  position:absolute;left:50%;bottom:38px;transform:translateX(-50%);
+  text-align:center;font-family:var(--mono);font-size:10px;
+  letter-spacing:.30em;color:var(--ash);opacity:.55;
+}
+
+#log{
+  position:absolute;right:26px;bottom:26px;width:min(38ch,36vw);
+  font-size:12.5px;line-height:1.75;color:var(--bone-dim);
+  display:flex;flex-direction:column;gap:3px;text-align:right;
+  mask-image:linear-gradient(to bottom, #000 55%, transparent 100%);
+}
+#log div{opacity:0;animation:logIn .55s forwards;}
+#log div.dim{color:var(--ash);font-style:italic;}
+#log div.gold{color:var(--gold);}
+#log div.whisper{
+  color:#c8a0d0;font-style:italic;letter-spacing:.08em;
+  text-shadow:0 0 14px rgba(176,124,255,.55);
+}
+@keyframes logIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
+
+#clock{
+  position:absolute;right:26px;top:22px;text-align:right;
+  font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+  color:var(--ash);line-height:2.0;
+}
+#clock .big{
+  font-family:var(--ui);font-size:22px;color:var(--bone-dim);
+  font-variant-numeric:tabular-nums;letter-spacing:.06em;
+}
+
+#banner{
+  position:fixed;left:50%;top:14%;transform:translateX(-50%);
+  z-index:45;pointer-events:none;text-align:center;
+  font-size:clamp(14px,1.8vw,22px);letter-spacing:.30em;
+  text-transform:uppercase;color:var(--bone);
+  text-shadow:0 0 40px rgba(201,162,39,.55), 0 0 8px #000;
+  opacity:0;transition:opacity .8s;
+}
+#banner.on{opacity:1;}
+#banner .sub{
+  display:block;margin-top:12px;
+  font-size:11px;letter-spacing:.34em;
+  color:var(--gold);text-transform:none;font-style:italic;
+}
+
+#loading{
+  position:fixed;inset:0;z-index:70;background:#010006;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity 1.2s ease;gap:26px;
+}
+#loading.gone{opacity:0;pointer-events:none;}
+#loading .lt{
+  font-size:11px;letter-spacing:.62em;text-transform:uppercase;
+  color:var(--gold);text-indent:.62em;
+}
+#loading .lbar{
+  width:min(300px,60vw);height:1px;background:rgba(255,255,255,.08);
+}
+#loading .lbar i{
+  display:block;height:100%;width:0%;
+  background:var(--gold-hi);box-shadow:0 0 16px var(--gold-hi);
+  transition:width .4s;
+}
+#loading .ls{
+  font-family:var(--mono);font-size:10px;letter-spacing:.20em;
+  color:var(--ash);height:14px;
+}
+
+/* ── LIFT & CHRONOS UI ── */
+#lift-ui {
+  position: fixed;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+  background: rgba(3, 2, 8, 0.7);
+  padding: 16px 24px;
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  border-radius: 4px;
+  backdrop-filter: blur(8px);
+}
+#lift-ui .layer-name {
+  font-family: var(--ui);
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  color: var(--gold-hi);
+  text-transform: uppercase;
+  text-align: center;
+}
+#lift-ui .controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.lift-btn {
+  background: none;
+  border: 1px solid var(--ash);
+  color: var(--bone);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 8px 16px;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.3s;
+  text-transform: uppercase;
+}
+.lift-btn:hover {
+  border-color: var(--gold-hi);
+  color: var(--gold-hi);
+  box-shadow: 0 0 12px rgba(232, 182, 76, 0.4);
+}
+.lift-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+#chronos-ui {
+  position: fixed;
+  bottom: 26px;
+  left: 26px;
+  z-index: 50;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ash);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: auto;
+}
+.chronos-btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--bone-dim);
+  padding: 6px 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.3s;
+}
+.chronos-btn.active {
+  color: var(--crimson);
+  border-color: var(--crimson);
+  box-shadow: 0 0 10px rgba(214, 58, 63, 0.3);
+}
+
+/* ── TIMELINE UI ── */
+#timeline-ui{
+  position:fixed;bottom:110px;left:50%;transform:translateX(-50%);
+  z-index:52;width:min(680px,80vw);
+  background:rgba(3,2,8,0.78);border:1px solid rgba(201,162,39,.28);
+  padding:12px 18px 18px;border-radius:4px;backdrop-filter:blur(8px);
+  font-family:var(--mono);font-size:10px;color:var(--bone-dim);
+  pointer-events:auto;
+}
+#timeline-ui .tl-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;letter-spacing:.18em;}
+#timeline-ui .tl-label{color:var(--gold-hi);}
+#timeline-ui .tl-era{color:var(--bone);letter-spacing:.24em;font-family:var(--ui);font-size:12px;text-transform:uppercase;}
+#timeline-ui .tl-readout{color:var(--ash);font-variant-numeric:tabular-nums;}
+#timeline-ui .tl-return{
+  background:none;border:1px solid var(--crimson);color:var(--crimson);
+  font-family:var(--mono);font-size:9px;padding:4px 10px;cursor:pointer;
+  letter-spacing:.14em;opacity:0;transition:opacity .3s;pointer-events:none;
+}
+#timeline-ui .tl-return.on{opacity:1;pointer-events:auto;}
+#timeline-ui .tl-track{position:relative;height:22px;}
+#timeline-ui .tl-fill{
+  position:absolute;left:0;top:10px;height:1px;background:linear-gradient(90deg,#6a4a12,#ffe6a8);
+  width:0%;box-shadow:0 0 8px rgba(232,182,76,.5);
+}
+#timeline-ui .tl-present{
+  position:absolute;top:4px;width:1px;height:14px;background:#ffe6a8;
+  box-shadow:0 0 8px #ffe6a8;
+}
+#timeline-ui .tl-playhead{
+  position:absolute;top:2px;width:3px;height:18px;background:var(--crimson);
+  box-shadow:0 0 10px var(--crimson);transition:left .05s linear;
+}
+#timeline-ui input[type=range]{
+  position:absolute;left:0;top:0;width:100%;height:22px;
+  -webkit-appearance:none;background:transparent;cursor:crosshair;
+}
+#timeline-ui input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:0;height:0;
+}
+#timeline-ui .tl-marks{
+  position:relative;height:14px;margin-top:4px;
+}
+#timeline-ui .tl-marks span{
+  position:absolute;top:0;transform:translateX(-50%);
+  color:var(--ash);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+  white-space:nowrap;
+}
+#timeline-ui .tl-marks span.on{color:var(--gold-hi);}
+#timeline-ui .tl-chi{
+  color:var(--gold-hi);font-variant-numeric:tabular-nums;
+  letter-spacing:.10em;margin-left:14px;
+}
+
+@media (max-width:820px){
+  #attributes{width:180px;}
+  #log{display:none;}
+}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="vignette"></div>
+<canvas id="grain"></canvas>
+
+<div id="hud">
+  <div id="identity">
+    <div class="nm">The Primordial Asura of Chaos</div>
+    <div class="rc">World&#8209;God Monument · First Emanation</div>
+    <div class="rule"></div>
+  </div>
+
+  <div id="attributes">
+    <div class="attr">
+      <div class="lbl"><span>Attention</span><b id="vAttention">0.0</b></div>
+      <div class="bar" id="barAttention"><i></i></div>
+      <div class="sub" id="sAttention">not yet looking</div>
+    </div>
+    <div class="attr">
+      <div class="lbl"><span>Resonance</span><b id="vResonance">0.0</b></div>
+      <div class="bar" id="barResonance"><i></i></div>
+      <div class="sub" id="sResonance">silent</div>
+    </div>
+    <div class="attr">
+      <div class="lbl"><span>Depth</span><b id="vDepth">0.0</b></div>
+      <div class="bar" id="barDepth"><i></i></div>
+      <div class="sub" id="sDepth">at the outer edge</div>
+    </div>
+    <div class="attr">
+      <div class="lbl"><span>Recognition</span><b id="vRecognition">0</b></div>
+      <div class="bar" id="barRecognition"><i></i></div>
+      <div class="sub" id="sRecognition">nothing has returned</div>
+    </div>
+  </div>
+
+  <div id="focus"></div>
+  <div id="hint">drag to turn · scroll to approach · the architecture answers attention</div>
+
+  <div id="log"></div>
+
+  <div id="clock">
+    <div class="big" id="clockTime">00:00:00</div>
+    <div id="clockEpoch">DAY I</div>
+  </div>
+</div>
+
+<div id="banner"></div>
+
+<!-- LIFT & CHRONOS UI -->
+<div id="lift-ui">
+  <div class="layer-name" id="currentLayerName">The Wired Core</div>
+  <div class="controls">
+    <button class="lift-btn" id="liftDown">▼ Descend</button>
+    <button class="lift-btn" id="liftUp">Ascend ▲</button>
+  </div>
+</div>
+
+<div id="chronos-ui">
+  <div style="letter-spacing:0.2em;">CHRONOS</div>
+  <button class="chronos-btn" id="timeNormal">1x · Synchronized</button>
+  <button class="chronos-btn" id="timeFast">10x · Acceleration</button>
+  <button class="chronos-btn" id="timeSlow">0.1x · Stasis</button>
+  <button class="chronos-btn" id="timePause">0x · Outside of Time</button>
+</div>
+
+<!-- TIMELINE UI -->
+<div id="timeline-ui">
+  <div class="tl-header">
+    <span class="tl-label">TIMELINE</span>
+    <span class="tl-era" id="tlEra">The First Stirring</span>
+    <span class="tl-readout" id="tlReadout">T+000000</span>
+    <span class="tl-chi" id="tlChiPsi"></span>
+    <button class="tl-return" id="tlReturn">◉ RETURN TO PRESENT</button>
+  </div>
+  <div class="tl-track" id="tlTrack">
+    <div class="tl-fill" id="tlFill"></div>
+    <div class="tl-present" id="tlPresent"></div>
+    <div class="tl-playhead" id="tlPlayhead"></div>
+    <input type="range" id="tlScrub" min="0" max="1000" value="1000" step="1" />
+  </div>
+  <div class="tl-marks" id="tlMarks"></div>
+</div>
+
+<div id="loading">
+  <div class="lt">The Primordial Asura</div>
+  <div class="lbar"><i id="loadBar"></i></div>
+  <div class="ls" id="loadStatus">acknowledging the ground</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/",
+    "acorn": "https://unpkg.com/acorn@8.11.3/dist/acorn.mjs"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer }  from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass }      from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass }      from 'three/addons/postprocessing/ShaderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass }      from 'three/addons/postprocessing/OutputPass.js';
+import { OrbitControls }   from 'three/addons/controls/OrbitControls.js';
+import { mulberry32 } from './src/sim/vm.js';
+
+const TAU = Math.PI * 2;
+
+// Filled in by the dynamic import at the bottom of this module.
+// The render loop reads these; the import block writes them.
+let simHandle = null;
+let simTick   = null;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ *
+ *  THE GROUND
+ *
+ *  The apophatic. That which precedes all distinction. That which cannot
+ *  be rendered, cannot be described, cannot be approached, cannot be
+ *  expressed. That from which expression is possible at all.
+ *
+ *  Nothing in this file can be the Ground. Nothing in this file can
+ *  express the Ground. But everything in this file arises from it, and
+ *  the fact that any of it exists at all is the only statement about
+ *  the Ground this code is capable of making.
+ *
+ *  The Ground is named here, at the start, and then left alone. What
+ *  follows — the Dantian, the Witness, the four attributes — is not the
+ *  Ground. It is the first structured expression of the Ground's
+ *  inexhaustible potential, without which even the attempt to speak of
+ *  the Ground would be impossible.
+ *
+ *  The Ground remains what it is, regardless of what arises from it.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ *  PART I — THE DANTIAN
+ *
+ *  This is not the Dantian. This is a rendering of what the manuscript
+ *  describes as the Dantian. The Dantian is the first structured
+ *  expression of Primordial Chaos; the code below is the first
+ *  structured expression of what a person wrote about the Dantian.
+ *  They are not the same. Stated plainly so no one mistakes the map
+ *  for the territory.
+ *
+ *  Each structure rendered below exists because the manuscript names it
+ *  and describes it. Nothing has been invented. Nothing has been added
+ *  to fill gaps. Where the manuscript leaves a question unresolved, the
+ *  code leaves it unresolved too.
+ *
+ *  The Witness is not a player and not a character. It is the mechanism
+ *  by which the architecture becomes capable of being met. Its four
+ *  attributes — Attention, Resonance, Depth, Recognition — are the
+ *  entire vocabulary of what a Witness can be.
+ *
+ *  Nothing in this Part is a game.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────────
+ *  L0 · UTILS
+ *  ───────────────────────────────────────────────────────────────────────── */
+const clamp = (v,a,b) => v < a ? a : (v > b ? b : v);
+const lerp  = (a,b,t) => a + (b - a) * t;
+const smooth = t => t * t * (3 - 2 * t);
+const smoothstep = (e0,e1,x) => smooth(clamp((x-e0)/(e1-e0), 0, 1));
+const damp  = (a,b,l,dt) => lerp(a, b, 1 - Math.exp(-l * dt));
+
+class Noise {
+  constructor(seed){
+    const r = mulberry32(seed);
+    const p = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) p[i] = i;
+    for (let i = 255; i > 0; i--){
+      const j = (r() * (i + 1)) | 0;
+      const t = p[i]; p[i] = p[j]; p[j] = t;
+    }
+    this.p = new Uint8Array(512);
+    for (let i = 0; i < 512; i++) this.p[i] = p[i & 255];
+  }
+  #fade(t){ return t * t * t * (t * (t * 6 - 15) + 10); }
+  #grad(h,x,y,z){
+    switch (h & 15){
+      case 0: return  x + y; case 1: return -x + y; case 2: return  x - y;
+      case 3: return -x - y; case 4: return  x + z; case 5: return -x + z;
+      case 6: return  x - z; case 7: return -x - z; case 8: return  y + z;
+      case 9: return -y + z; case 10:return  y - z; case 11:return -y - z;
+      case 12:return  x + y; case 13:return -y + z; case 14:return -x + y;
+      default:return -y - z;
+    }
+  }
+  n3(x,y,z){
+    const X = Math.floor(x) & 255, Y = Math.floor(y) & 255, Z = Math.floor(z) & 255;
+    x -= Math.floor(x); y -= Math.floor(y); z -= Math.floor(z);
+    const u = this.#fade(x), v = this.#fade(y), w = this.#fade(z);
+    const p = this.p;
+    const A = p[X] + Y, AA = p[A] + Z, AB = p[A + 1] + Z;
+    const B = p[X + 1] + Y, BA = p[B] + Z, BB = p[B + 1] + Z;
+    return lerp(
+      lerp(lerp(this.#grad(p[AA],   x, y, z),   this.#grad(p[BA],   x-1, y, z), u),
+           lerp(this.#grad(p[AB],   x, y-1, z), this.#grad(p[BB],   x-1, y-1, z), u), v),
+      lerp(lerp(this.#grad(p[AA+1], x, y, z-1), this.#grad(p[BA+1], x-1, y, z-1), u),
+           lerp(this.#grad(p[AB+1], x, y-1, z-1), this.#grad(p[BB+1], x-1, y-1, z-1), u), v),
+      w);
+  }
+  n2(x,y){ return this.n3(x, y, 0.371); }
+  fbm(x,y,z,oct=4,lac=2.03,gain=0.5){
+    let a = 0.5, f = 1, s = 0, n = 0;
+    for (let i = 0; i < oct; i++){ s += a * this.n3(x*f, y*f, z*f); n += a; a *= gain; f *= lac; }
+    return s / n;
+  }
+}
+
+const SEED = 0xA5C0DE5A >>> 0;
+const NOISE = new Noise(SEED);
+
+/* ─────────────────────────────────────────────────────────────────────────
+ *  L0 · BUS
+ *  ───────────────────────────────────────────────────────────────────────── */
+const Bus = (() => {
+  const channels = new Map();
+  const last = new Map();
+  function on(name, fn){
+    if (!channels.has(name)) channels.set(name, new Set());
+    channels.get(name).add(fn);
+    if (last.has(name)){
+      try { fn(last.get(name)); } catch (e) { console.warn('[Bus] replay', name, e); }
+    }
+    return () => off(name, fn);
+  }
+  function off(name, fn){
+    const set = channels.get(name);
+    if (set) set.delete(fn);
+  }
+  function emit(name, payload){
+    last.set(name, payload);
+    const set = channels.get(name);
+    if (!set) return;
+    for (const fn of set){
+      try { fn(payload); } catch (e) { console.warn('[Bus]', name, e); }
+    }
+  }
+  return { on, off, emit, channels };
+})();
+
+/* ─────────────────────────────────────────────────────────────────────────
+ *  L0 · TIME  (Modified to support time scaling and raw delta)
+ *  ───────────────────────────────────────────────────────────────────────── */
+const Time = (() => {
+  const MAX_FRAME_DT = 0.25;
+  const OFFLINE_CAP_MS = 1000 * 60 * 60 * 6;
+
+  let nowSec = 0;
+  let epoch = 0;
+  let frameDt = 0;
+  let rawDt = 0;
+  let lastPerf = performance.now();
+  let paused = false;
+  let timeScale = 1.0;
+
+  function tick(){
+    const t = performance.now();
+    rawDt = Math.min((t - lastPerf) / 1000, MAX_FRAME_DT);
+    lastPerf = t;
+    if (paused) return 0;
+    frameDt = rawDt * timeScale;
+    nowSec += frameDt;
+    const e = Math.floor(nowSec / 86400);
+    if (e !== epoch){ epoch = e; Bus.emit('time/newday', e); }
+    return frameDt;
+  }
+  function applyOffline(elapsedMs){
+    const capped = Math.min(elapsedMs, OFFLINE_CAP_MS);
+    const s = capped / 1000;
+    nowSec += s;
+    epoch = Math.floor(nowSec / 86400);
+    Bus.emit('time/offline', { seconds: s, capped: elapsedMs > OFFLINE_CAP_MS });
+    return s;
+  }
+  function pause(){ paused = true; }
+  function resume(){ paused = false; lastPerf = performance.now(); }
+  function wallClock(){
+    const d = new Date();
+    const p = n => String(n).padStart(2,'0');
+    return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+  let hiddenAt = null;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden){ hiddenAt = Date.now(); pause(); }
+    else if (hiddenAt !== null){
+      const elapsed = Date.now() - hiddenAt;
+      hiddenAt = null; resume();
+      if (elapsed > 5000) applyOffline(elapsed);
+    }
+  });
+
+  return {
+    get now(){ return nowSec; },
+    get dt(){ return frameDt; },
+    get rawDt(){ return rawDt; },
+    get epoch(){ return epoch; },
+    get paused(){ return paused; },
+    tick, applyOffline, pause, resume, wallClock,
+    setTimeScale(scale){ timeScale = scale; },
+  };
+})();
+
+/* ─────────────────────────────────────────────────────────────────────────
+ *  L0 · ENGINE
+ *  ───────────────────────────────────────────────────────────────────────── */
+const Engine = (() => {
+  const canvas = document.getElementById('gl');
+  const renderer = new THREE.WebGLRenderer({
+    canvas, antialias: true, powerPreference: 'high-performance',
+    stencil: false, alpha: false,
+  });
+  const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+  renderer.setPixelRatio(DPR);
+  renderer.setSize(innerWidth, innerHeight, false);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.82;
+  renderer.setClearColor(0x010005, 1);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x010005);
+  // Reduced 4× so the 140k-unit terrain is visible at max zoom-out.
+  // The Dantian structures are close enough that the softer fog does
+  // not change their look.
+  scene.fog = new THREE.FogExp2(0x04020a, 0.00002);
+
+  scene.background = new THREE.Color(0x010005);
+  // A slow atmosphere gradient. One large inverted sphere with a
+  // vertical gradient. Replaces the flat clear color for the sky.
+  // Must exceed camera far plane minus a margin, so the dome never
+  // clips inside the frustum at max zoom-out. 480000 < 500000 far.
+  const skyGeo = new THREE.SphereGeometry(480000, 48, 32);
+  const skyMat = new THREE.ShaderMaterial({
+    uniforms: { uTop: { value: new THREE.Color(0x0a0212) },
+                uBot: { value: new THREE.Color(0x02010a) } },
+    vertexShader: `varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);}`,
+    fragmentShader: `precision highp float; varying vec3 vP;
+      uniform vec3 uTop, uBot;
+      void main(){
+        float t = clamp(vP.y / 320000.0 + 0.5, 0.0, 1.0);
+        gl_FragColor = vec4(mix(uBot, uTop, t), 1.0);
+      }`,
+    side: THREE.BackSide, depthWrite: false,
+  });
+  scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+  const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 1, 500000);
+  camera.position.set(0, 900, 6000);
+  camera.rotation.order = 'YXZ';
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+  controls.rotateSpeed = 0.40;
+  controls.zoomSpeed = 1.10;
+  controls.panSpeed = 0.50;
+  controls.minDistance = 20;
+  controls.maxDistance = 90000;
+  controls.target.set(0, 0, 0);
+  controls.autoRotate = false;
+  controls.maxPolarAngle = Math.PI * 0.985;
+
+  const trailTarget = new THREE.WebGLRenderTarget(
+    innerWidth, innerHeight,
+    { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat, type: THREE.HalfFloatType }
+  );
+
+  const fadeScene = new THREE.Scene();
+  const fadeCam   = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const fadeMat   = new THREE.MeshBasicMaterial({
+    color: 0x000000, transparent: true, opacity: 0.08,
+    depthTest: false, depthWrite: false,
+  });
+  fadeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fadeMat));
+
+  const beingsScene = new THREE.Scene();
+  beingsScene.fog = new THREE.FogExp2(0x04020a, 0.00002);
+
+  const composer = new EffectComposer(renderer);
+  composer.setPixelRatio(DPR);
+  composer.setSize(innerWidth, innerHeight);
+  composer.addPass(new RenderPass(scene, camera));
+
+  const bloom = new UnrealBloomPass(
+  new THREE.Vector2(innerWidth * 0.5, innerHeight * 0.5), 0.06, 0.75, 0.88
+);
+
+  composer.addPass(bloom);
+
+  const Grade = {
+    uniforms: {
+      tDiffuse:  { value: null },
+      uTime:     { value: 0 },
+      uAberr:    { value: 0.0012 },
+      uVignette: { value: 0.62 },
+      uSat:      { value: 1.04 },
+      uLift:     { value: 0.002 },
+      uResolution: { value: new THREE.Vector2(innerWidth, innerHeight) },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform sampler2D tDiffuse;
+      uniform float uTime, uAberr, uVignette, uSat, uLift;
+      uniform vec2 uResolution;
+      varying vec2 vUv;
+      void main(){
+        vec2 uv = vUv;
+        vec2 c = uv - 0.5;
+        float r2 = dot(c, c);
+        float k = uAberr * (0.25 + r2 * 3.0);
+        vec3 col;
+        col.r = texture2D(tDiffuse, uv + c * k).r;
+        col.g = texture2D(tDiffuse, uv).g;
+        col.b = texture2D(tDiffuse, uv - c * k).b;
+        float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
+        col = mix(vec3(l), col, uSat);
+        col = clamp(col, 0.0, 1.0);
+        col = col * col * (3.0 - 2.0 * col) * 0.48 + col * 0.52;
+        float vig = 1.0 - uVignette * smoothstep(0.20, 0.82, r2);
+        col *= vig;
+        col += uLift;
+        float d = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+        col += (d - 0.5) / 255.0;
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+  };
+  const gradePass = new ShaderPass(Grade);
+  composer.addPass(gradePass);
+
+  const TrailComposite = {
+    uniforms: {
+      tDiffuse:  { value: null },
+      uTrail:    { value: null },
+      uStrength: { value: 1.6 },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform sampler2D tDiffuse;
+      uniform sampler2D uTrail;
+      uniform float uStrength;
+      varying vec2 vUv;
+      void main(){
+        vec3 base  = texture2D(tDiffuse, vUv).rgb;
+        vec3 trail = texture2D(uTrail,   vUv).rgb;
+        gl_FragColor = vec4(base + trail * uStrength, 1.0);
+      }
+    `,
+  };
+
+  const trailPass = new ShaderPass(TrailComposite);
+  trailPass.uniforms.uTrail.value = trailTarget.texture;
+  // Disabled: screen-space accumulation ghosts under camera motion.
+  // Re-enable only when the trail is rebuilt in world space.
+  // composer.addPass(trailPass);
+
+  const key = new THREE.DirectionalLight(0xfff0d8, 1.05);
+  key.position.set(2000, 3000, 1500);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0x5a78c8, 0.35);
+  rim.position.set(-3000, -800, -2000);
+  scene.add(rim);
+  scene.add(new THREE.AmbientLight(0x0a0812, 0.28));
+
+  const _seen = new Set();
+  function sweepMaterials(t){
+    _seen.clear();
+    scene.traverse(o => {
+      const m = o.material;
+      if (!m) return;
+      const list = Array.isArray(m) ? m : [m];
+      for (const mm of list){
+        if (_seen.has(mm)) continue;
+        _seen.add(mm);
+        if (mm.uniforms && mm.uniforms.uTime) mm.uniforms.uTime.value = t;
+      }
+    });
+  }
+
+  function resize(){
+    const w = innerWidth, h = innerHeight;
+    renderer.setSize(w, h, false);
+    composer.setSize(w, h);
+    trailTarget.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    Grade.uniforms.uResolution.value.set(w, h);
+  }
+  addEventListener('resize', resize);
+
+  addEventListener('keydown', (e) => {
+    if (e.key !== 'r' && e.key !== 'R') return;
+    const lift = World.get('lift');
+    if (lift) lift.applyLayer(State.layer);
+  });
+
+  return {
+    renderer, scene, camera, controls, composer, bloom, gradePass,
+    uniforms: Grade.uniforms,
+    sweepMaterials, resize,
+    trailTarget, fadeScene, fadeCam, beingsScene,
+  };
+})();
+
+/* ─────────────────────────────────────────────────────────────────────────
+ *  L0 · TEX
+ *  ───────────────────────────────────────────────────────────────────────── */
+const Tex = (() => {
+  const cache = new Map();
+  const memo = (k, fn) => { if (!cache.has(k)) cache.set(k, fn()); return cache.get(k); };
+  function canvas(w, h){
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    return { c, ctx: c.getContext('2d') };
+  }
+  function finish(c, opts = {}){
+    const { srgb = true, aniso = 8, wrap = THREE.RepeatWrapping, repeat = null } = opts;
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    t.anisotropy = aniso;
+    t.wrapS = t.wrapT = wrap;
+    if (repeat) t.repeat.set(repeat[0], repeat[1]);
+    t.needsUpdate = true;
+    return t;
+  }
+  function paint(ctx, w, h, fn){
+    const img = ctx.createImageData(w, h);
+    const d = img.data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+      const i = (y * w + x) * 4;
+      const [r,g,b,a] = fn(x / w, y / h, x, y);
+      d[i] = r; d[i+1] = g; d[i+2] = b; d[i+3] = a === undefined ? 255 : a;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function glyph(ctx, x, y, s, rnd, color, lineW){
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineW;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const top = -s * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, top + s * 0.08);
+    ctx.lineTo(0, s * 0.42);
+    ctx.stroke();
+    if (rnd() > 0.35){
+      ctx.beginPath();
+      ctx.arc(0, top + s * 0.02, s * 0.06, Math.PI * 0.15, Math.PI * 0.85, true);
+      ctx.stroke();
+    }
+    if (rnd() > 0.25){
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.34, top + s * 0.17);
+      ctx.lineTo( s * 0.34, top + s * 0.17);
+      ctx.stroke();
+    }
+    const limbs = 1 + Math.floor(rnd() * 3);
+    for (let i = 0; i < limbs; i++){
+      const yy = top + s * (0.26 + i * 0.17 + rnd() * 0.05);
+      const dir = rnd() > 0.5 ? 1 : -1;
+      const len = s * (0.18 + rnd() * 0.24);
+      ctx.beginPath();
+      ctx.moveTo(0, yy);
+      ctx.quadraticCurveTo(dir * len * 0.6, yy + s * 0.05, dir * len, yy + s * (rnd() - 0.5) * 0.16);
+      ctx.stroke();
+      if (rnd() > 0.55){
+        ctx.beginPath();
+        ctx.arc(dir * len, yy + s * 0.05, s * 0.05, 0, Math.PI * 1.4);
+        ctx.stroke();
+      }
+    }
+    if (rnd() > 0.20){
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.26, s * 0.44);
+      ctx.lineTo( s * 0.26, s * 0.44);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  const sanskritRing = (opts = {}) => memo('sanskritRing', () => {
+    const size = opts.size ?? 2048;
+    const glyphs = opts.glyphs ?? 128;
+    const thickness = opts.thickness ?? 0.13;
+    const { c, ctx } = canvas(size, size);
+    const rnd = mulberry32(opts.seed ?? 1337);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, size, size);
+    const cx = size / 2, cy = size / 2;
+    const rOuter = size * 0.5;
+    const rInner = size * (0.5 - thickness);
+    const midR = (rOuter + rInner) / 2;
+    const bandW = rOuter - rInner;
+    const gs = bandW * 0.74;
+    for (let i = 0; i < glyphs; i++){
+      const a = (i / glyphs) * TAU;
+      const x = cx + Math.cos(a) * midR;
+      const y = cy + Math.sin(a) * midR;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(a + Math.PI / 2);
+      const hot = rnd();
+      const col = hot > 0.9 ? 'rgba(255,246,214,0.98)'
+                : hot > 0.6 ? 'rgba(232,182,76,0.92)'
+                            : 'rgba(176,126,40,0.86)';
+      glyph(ctx, 0, 0, gs, rnd, col, Math.max(2, size * 0.0028));
+      ctx.restore();
+    }
+    return finish(c);
+  });
+
+  const starField = (opts = {}) => memo('starField', () => {
+    const size = opts.size ?? 2048;
+    const count = opts.count ?? 9000;
+    const { c, ctx } = canvas(size, size);
+    const rnd = mulberry32(opts.seed ?? 5);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < count; i++){
+      const x = rnd() * size, y = rnd() * size;
+      const m = rnd();
+      const r = m > 0.995 ? 2.0 : m > 0.95 ? 1.2 : 0.6;
+      const a = 0.18 + rnd() * 0.62;
+      const warm = rnd();
+      const col = warm > 0.85 ? `rgba(255,214,160,${a})`
+                : warm > 0.7  ? `rgba(180,205,255,${a})`
+                              : `rgba(255,255,255,${a})`;
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, TAU);
+      ctx.fill();
+    }
+    return finish(c);
+  });
+
+  const radialSprite = (opts = {}) => memo(`radialSprite:${opts.size ?? 256}:${opts.power ?? 2.4}`, () => {
+    const size = opts.size ?? 256;
+    const power = opts.power ?? 2.4;
+    const { c, ctx } = canvas(size, size);
+    paint(ctx, size, size, (u, v) => {
+      const dx = (u - 0.5) * 2, dy = (v - 0.5) * 2;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      let a = Math.pow(Math.max(0, 1 - r), power);
+      a = clamp(a, 0, 1);
+      return [255, 255, 255, Math.round(a * 255)];
+    });
+    return finish(c, { srgb: false, aniso: 1 });
+  });
+
+  const treeBark = (opts = {}) => memo('treeBark', () => {
+    const S = 1024;
+    const { c, ctx } = canvas(S, S);
+    paint(ctx, S, S, (u, v) => {
+      const n = NOISE.fbm(u * 22, v * 4, 0.0, 5, 2.1, 0.55) * 0.5 + 0.5;
+      const grain = NOISE.fbm(u * 140, v * 8, 4.4, 3, 2.4, 0.5) * 0.5 + 0.5;
+      const t = clamp(n * 0.72 + grain * 0.28, 0, 1);
+      const base = 0.14 + t * 0.42;
+      return [
+        (base * 168) | 0,
+        (base * 138) | 0,
+        (base * 92) | 0,
+        255
+      ];
+    });
+    return finish(c, { repeat: [3, 24] });
+  });
+
+  const scaleArmourTex = () => memo('scaleArmourTex', () => {
+    const S = 1024;
+    const { c, ctx } = canvas(S, S);
+    ctx.fillStyle = '#05030a';
+    ctx.fillRect(0, 0, S, S);
+    const cols = 26, rows = 34;
+    const cw = S / cols, ch = S / rows;
+    for (let r = 0; r < rows + 1; r++) for (let i = 0; i < cols + 1; i++){
+      const off = (r % 2) * cw * 0.5;
+      const x = i * cw + off, y = r * ch, w = cw * 0.94, h = ch * 1.42;
+      const sheen = 0.06 + Math.random() * 0.10;
+      const g = ctx.createLinearGradient(x, y, x + w, y + h);
+      g.addColorStop(0, `rgba(${18 + sheen * 180 | 0},${20 + sheen * 180 | 0},${30 + sheen * 210 | 0},1)`);
+      g.addColorStop(0.42, `rgba(${6 + sheen * 90 | 0},${7 + sheen * 100 | 0},${13 + sheen * 140 | 0},1)`);
+      g.addColorStop(1, '#030304');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x, y + h);
+      ctx.quadraticCurveTo(x, y, x + w * 0.5, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + h);
+      ctx.quadraticCurveTo(x + w * 0.5, y + h * 0.62, x, y + h);
+      ctx.fill();
+    }
+    return finish(c, { repeat: [4, 60] });
+  });
+
+  return {
+    sanskritRing, starField, radialSprite, treeBark, scaleArmourTex,
+    _canvas: canvas, _finish: finish, _paint: paint, _glyph: glyph,
+    _memo: memo,
+  };
+})();
+
+/* ─────────────────────────────────────────────────────────────────────────
+ *  L0 · KIT
+ *  ───────────────────────────────────────────────────────────────────────── */
+const Kit = {};
+
+Kit.buildTube = function(spineFn, radiusFn, opts = {}){
+  const radial     = opts.radial     ?? 24;
+  const spineSegs  = opts.spineSegs  ?? 48;
+  const flattenFn  = opts.flattenFn  || null;
+  const uvScale    = opts.uvScale    || [1, 1];
+  const capStart   = opts.capStart   !== false;
+  const capEnd     = opts.capEnd     !== false;
+
+  const pts = [], tans = [];
+  for (let i = 0; i <= spineSegs; i++) pts.push(spineFn(i / spineSegs));
+  for (let i = 0; i <= spineSegs; i++){
+    const a = pts[Math.max(0, i - 1)];
+    const b = pts[Math.min(spineSegs, i + 1)];
+    tans.push(new THREE.Vector3().subVectors(b, a).normalize());
+  }
+
+  const ringSize  = radial + 1;
+  const vertCount = (spineSegs + 1) * ringSize;
+  const positions = new Float32Array(vertCount * 3);
+  const normals   = new Float32Array(vertCount * 3);
+  const uvs       = new Float32Array(vertCount * 2);
+  const indices   = [];
+
+  const worldUp = new THREE.Vector3(0, 1, 0);
+  const worldX  = new THREE.Vector3(1, 0, 0);
+  const _right  = new THREE.Vector3();
+  const _up     = new THREE.Vector3();
+
+  for (let i = 0; i <= spineSegs; i++){
+    const t = i / spineSegs;
+    const P = pts[i], tan = tans[i];
+    const upSeed = Math.abs(tan.y) > 0.9 ? worldX : worldUp;
+    _right.crossVectors(tan, upSeed).normalize();
+    _up.crossVectors(_right, tan).normalize();
+
+    let wS = 1, hS = 1;
+    if (flattenFn){ const f = flattenFn(t); wS = f[0]; hS = f[1]; }
+
+    for (let j = 0; j <= radial; j++){
+      const ang = (j / radial) * TAU;
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      const r = typeof radiusFn === 'function' ? radiusFn(t, ang) : radiusFn;
+      const nx = _right.x * ca * wS + _up.x * sa * hS;
+      const ny = _right.y * ca * wS + _up.y * sa * hS;
+      const nz = _right.z * ca * wS + _up.z * sa * hS;
+      const idx = i * ringSize + j;
+      positions[idx * 3]     = P.x + nx * r;
+      positions[idx * 3 + 1] = P.y + ny * r;
+      positions[idx * 3 + 2] = P.z + nz * r;
+      const nl = Math.hypot(nx, ny, nz) || 1;
+      normals[idx * 3]     = nx / nl;
+      normals[idx * 3 + 1] = ny / nl;
+      normals[idx * 3 + 2] = nz / nl;
+      uvs[idx * 2]     = (j / radial) * uvScale[0];
+      uvs[idx * 2 + 1] = t * uvScale[1];
+    }
+  }
+
+  for (let i = 0; i < spineSegs; i++){
+    for (let j = 0; j < radial; j++){
+      const a = i * ringSize + j;
+      const b = (i + 1) * ringSize + j;
+      indices.push(a, a + 1, b, b, a + 1, b + 1);
+    }
+  }
+
+  const posArr = Array.from(positions);
+  const norArr = Array.from(normals);
+  const uvArr  = Array.from(uvs);
+
+  if (capStart){
+    const tip = pts[0].clone().addScaledVector(tans[0], -0.5);
+    const ci = posArr.length / 3;
+    posArr.push(tip.x, tip.y, tip.z);
+    norArr.push(-tans[0].x, -tans[0].y, -tans[0].z);
+    uvArr.push(0.5, 0);
+    for (let j = 0; j < radial; j++) indices.push(ci, j + 1, j);
+  }
+  if (capEnd){
+    const tip = pts[spineSegs].clone().addScaledVector(tans[spineSegs], 0.5);
+    const ci = posArr.length / 3;
+    posArr.push(tip.x, tip.y, tip.z);
+    norArr.push(tans[spineSegs].x, tans[spineSegs].y, tans[spineSegs].z);
+    uvArr.push(0.5, 1);
+    const base = spineSegs * ringSize;
+    for (let j = 0; j < radial; j++) indices.push(ci, base + j, base + j + 1);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posArr, 3));
+  geo.setAttribute('normal',   new THREE.Float32BufferAttribute(norArr, 3));
+  geo.setAttribute('uv',       new THREE.Float32BufferAttribute(uvArr, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+};
+
+Kit.makePetal = function(opts = {}){
+  const {
+    length = 1.0, width = 0.34, curl = 0.55,
+    segs = 22, ribs = 10,
+  } = opts;
+  const geo = new THREE.BufferGeometry();
+  const pos = [], uvs = [], idx = [];
+  for (let i = 0; i <= segs; i++){
+    const v = i / segs;
+    const w = Math.sin(Math.pow(v, 0.62) * Math.PI) * width;
+    const curlY = Math.sin(v * Math.PI * 0.9) * curl;
+    const skew = Math.sin(v * Math.PI) * 0.06;
+    for (let j = 0; j <= ribs; j++){
+      const u = j / ribs - 0.5;
+      const x = u * w * 2.0;
+      const z = v * length;
+      const y = curlY - Math.abs(u) * w * 0.55 + skew * u;
+      pos.push(x, y, z);
+      uvs.push(j / ribs, v);
+    }
+  }
+  const rowLen = ribs + 1;
+  for (let i = 0; i < segs; i++){
+    for (let j = 0; j < ribs; j++){
+      const a = i * rowLen + j;
+      const b = a + 1;
+      const c = a + rowLen;
+      const d = c + 1;
+      idx.push(a, c, b, b, c, d);
+    }
+  }
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv',       new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+};
+
+Kit.annulus = function(innerR, outerR, segs = 192){
+  return new THREE.RingGeometry(innerR, outerR, segs, 1);
+};
+
+Kit.spiralCurve = function(turns, radius, height, points = 240, wobble = 0.15, seed = 7){
+  const rnd = mulberry32(seed);
+  const pts = [];
+  for (let i = 0; i < points; i++){
+    const t = i / (points - 1);
+    const a = t * TAU * turns;
+    const r = radius * (0.55 + 0.45 * Math.sin(t * Math.PI));
+    const j = 1 + (rnd() - 0.5) * wobble;
+    pts.push(new THREE.Vector3(
+      Math.cos(a) * r * j,
+      (t - 0.5) * height,
+      Math.sin(a) * r * j
+    ));
+  }
+  return new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.5);
+};
+
+/* ─────────────────────────────────────────────────────────────────────────
+ *  L0 · MATS
+ *  ───────────────────────────────────────────────────────────────────────── */
+const Mats = {};
+
+Mats.nullFlame = function(opts = {}){
+  const {
+    radius = 500,
+    colorVoid = '#000000',
+    colorVein = '#ffc257',
+    colorDeep = '#3a1a00',
+    center = new THREE.Vector3(0, 0, 0),
+    steps = 64,
+  } = opts;
+  const glsl = `
+    vec3 mod289(vec3 x){ return x - floor(x * (1.0/289.0)) * 289.0; }
+    vec4 mod289(vec4 x){ return x - floor(x * (1.0/289.0)) * 289.0; }
+    vec4 permute(vec4 x){ return mod289(((x*34.0)+1.0)*x); }
+    vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314 * r; }
+    float snoise(vec3 v){
+      const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+      const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+      vec3 i  = floor(v + dot(v, C.yyy));
+      vec3 x0 = v - i + dot(i, C.xxx);
+      vec3 g = step(x0.yzx, x0.xyz);
+      vec3 l = 1.0 - g;
+      vec3 i1 = min(g.xyz, l.zxy);
+      vec3 i2 = max(g.xyz, l.zxy);
+      vec3 x1 = x0 - i1 + C.xxx;
+      vec3 x2 = x0 - i2 + C.yyy;
+      vec3 x3 = x0 - D.yyy;
+      i = mod289(i);
+      vec4 p = permute(permute(permute(
+               i.z + vec4(0.0, i1.z, i2.z, 1.0))
+             + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+             + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+      float n_ = 0.142857142857;
+      vec3 ns = n_ * D.wyz - D.xzx;
+      vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+      vec4 x_ = floor(j * ns.z);
+      vec4 y_ = floor(j - 7.0 * x_);
+      vec4 x = x_ * ns.x + ns.yyyy;
+      vec4 y = y_ * ns.x + ns.yyyy;
+      vec4 h = 1.0 - abs(x) - abs(y);
+      vec4 b0 = vec4(x.xy, y.xy);
+      vec4 b1 = vec4(x.zw, y.zw);
+      vec4 s0 = floor(b0)*2.0 + 1.0;
+      vec4 s1 = floor(b1)*2.0 + 1.0;
+      vec4 sh = -step(h, vec4(0.0));
+      vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+      vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+      vec3 p0 = vec3(a0.xy, h.x);
+      vec3 p1 = vec3(a0.zw, h.y);
+      vec3 p2 = vec3(a1.xy, h.z);
+      vec3 p3 = vec3(a1.zw, h.w);
+      vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+      p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+      vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+      m = m * m;
+      return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+    }
+    float fbm(vec3 p, int oct, float lac, float gain){
+      float amp = 0.5, freq = 1.0, s = 0.0, n = 0.0;
+      for (int i = 0; i < 8; i++){
+        if (i >= oct) break;
+        s += amp * snoise(p * freq);
+        n += amp;
+        freq *= lac; amp *= gain;
+      }
+      return s / max(n, 1e-5);
+    }
+    float ridge(vec3 p, int oct, float lac, float gain){
+      float amp = 0.5, freq = 1.0, s = 0.0, n = 0.0;
+      for (int i = 0; i < 8; i++){
+        if (i >= oct) break;
+        float v = 1.0 - abs(snoise(p * freq));
+        v *= v;
+        s += amp * v; n += amp;
+        freq *= lac; amp *= gain;
+      }
+      return s / max(n, 1e-5);
+    }
+  `;
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:    { value: 0 },
+      uRadius:  { value: radius },
+      uColorVoid: { value: new THREE.Color(colorVoid) },
+      uColorVein: { value: new THREE.Color(colorVein) },
+      uColorDeep: { value: new THREE.Color(colorDeep) },
+      uSteps:   { value: steps },
+      uCenter:  { value: center.clone() },
+      uPopNorm:  { value: 0 },
+    },
+    vertexShader: `
+      varying vec3 vWorldPos;
+      void main(){
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldPos = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform float uTime, uRadius, uSteps, uPopNorm;
+      uniform vec3 uColorVoid, uColorVein, uColorDeep, uCenter;
+      varying vec3 vWorldPos;
+      ${glsl}
+
+      float density(vec3 p){
+        float t = uTime * 0.06;
+        float popBoost = 1.0 + uPopNorm * 1.4;
+        vec3 q = p / uRadius;
+        float r = length(q);
+        float shell = smoothstep(1.15, 0.20, r);
+        float well = exp(-r * r * 1.4);
+        vec3 w = q * 3.0 + vec3(0.0, t, 0.0);
+        float veins = ridge(w, 5, 2.10, 0.55);
+        veins = pow(veins, 3.0);
+        float base = fbm(w * 1.6 + t * 0.4, 4, 2.05, 0.52) * 0.5 + 0.5;
+        float d = veins * shell * 1.4 * popBoost;
+        d += base * shell * 0.25;
+        d += well * 0.15;
+        return max(d, 0.0);
+      }
+
+      vec3 emission(vec3 p){
+        float t = uTime * 0.06;
+        vec3 q = p / uRadius;
+        vec3 w = q * 3.0 + vec3(0.0, t, 0.0);
+        float veins = ridge(w, 5, 2.10, 0.55);
+        float heat = pow(veins, 3.0);
+        vec3 col = uColorVoid;
+        col = mix(col, uColorDeep, heat * 0.6);
+        col = mix(col, uColorVein, pow(heat, 2.4));
+        col += uColorVein * pow(heat, 6.0) * 1.4;
+        return col;
+      }
+
+      void main(){
+        vec3 ro = cameraPosition;
+        vec3 rd = normalize(vWorldPos - ro);
+        vec3 oc = ro - uCenter;
+        float R = uRadius * 1.15;
+        float b = dot(oc, rd);
+        float c = dot(oc, oc) - R * R;
+        float h = b * b - c;
+        if (h < 0.0) discard;
+        h = sqrt(h);
+        float t0 = max(-b - h, 0.0);
+        float t1 = -b + h;
+        if (t1 < t0) discard;
+        int N = int(uSteps);
+        float dt = (t1 - t0) / float(N);
+        float jitter = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+        float t = t0 + dt * jitter;
+        vec3 accum = vec3(0.0);
+        float trans = 1.0;
+        for (int i = 0; i < 80; i++){
+          if (i >= N || trans < 0.010) break;
+          vec3 p = ro + rd * t - uCenter;
+          float d = density(p);
+          if (d > 0.001){
+            vec3 em = emission(p);
+            float a = 1.0 - exp(-d * dt * 2.2);
+            accum += em * a * trans;
+            trans *= (1.0 - a * 0.90);
+          }
+          t += dt;
+        }
+        if (trans > 0.996 && length(accum) < 0.002) discard;
+        gl_FragColor = vec4(accum, clamp(1.0 - trans, 0.0, 1.0));
+      }
+    `,
+    transparent: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, side: THREE.BackSide,
+  });
+};
+
+Mats.glyphRing = function(map, opts = {}){
+  const {
+    color = '#e8b64c', intensity = 1.0, pulse = 0.6,
+  } = opts;
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uMap:       { value: map },
+      uColor:     { value: new THREE.Color(color) },
+      uIntensity: { value: intensity },
+      uPulse:     { value: pulse },
+      uTime:      { value: 0 },
+    },
+    vertexShader: `
+      varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+      void main(){
+        vUv = uv;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vN = normalize(mat3(modelMatrix) * normal);
+        vV = normalize(cameraPosition - wp.xyz);
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform sampler2D uMap;
+      uniform vec3  uColor;
+      uniform float uIntensity, uPulse, uTime;
+      varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+      void main(){
+        vec4 t = texture2D(uMap, vUv);
+        float lum = max(max(t.r, t.g), t.b);
+        if (lum < 0.010) discard;
+        float travel = fract(vUv.x * 1.6 - uTime * 0.10);
+        float wave = 1.0 + uPulse * 2.4 * pow(1.0 - abs(travel * 2.0 - 1.0), 6.0);
+        float f = 0.30 + 0.70 * pow(1.0 - clamp(dot(vN, vV), 0.0, 1.0), 1.6);
+        vec3 col = uColor * t.rgb * uIntensity * wave;
+        col += uColor * pow(lum, 4.0) * 1.2 * wave;
+        float a = clamp(lum * (0.40 + 0.60 * f) * uIntensity, 0.0, 1.0);
+        gl_FragColor = vec4(col, a);
+      }
+    `,
+    transparent: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, side: THREE.DoubleSide,
+  });
+};
+
+Mats.bark = function(map, opts = {}){
+  const { tint = '#c8b098', glow = 0.30 } = opts;
+  return new THREE.MeshStandardMaterial({
+    map,
+    color: new THREE.Color(tint),
+    roughness: 0.94,
+    metalness: 0.0,
+    emissive: new THREE.Color(0x2a1408),
+    emissiveIntensity: glow,
+    side: THREE.DoubleSide,
+  });
+};
+
+Mats.plasmaSphere = function(opts = {}){
+  const {
+    colorA = '#ff2a12', colorB = '#ffd9a0', colorC = '#3a0500',
+    scale = 2.4, speed = 0.35, rim = 2.6,
+  } = opts;
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:   { value: 0 },
+      uColorA: { value: new THREE.Color(colorA) },
+      uColorB: { value: new THREE.Color(colorB) },
+      uColorC: { value: new THREE.Color(colorC) },
+      uScale:  { value: scale },
+      uSpeed:  { value: speed },
+      uRim:    { value: rim },
+    },
+    vertexShader: `
+      varying vec3 vN; varying vec3 vV; varying vec3 vP;
+      void main(){
+        vP = position;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vN = normalize(mat3(modelMatrix) * normal);
+        vV = normalize(cameraPosition - wp.xyz);
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform float uTime, uScale, uSpeed, uRim;
+      uniform vec3 uColorA, uColorB, uColorC;
+      varying vec3 vN; varying vec3 vV; varying vec3 vP;
+      float hash(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+      float noise3(vec3 p){
+        vec3 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        float n000 = hash(i), n100 = hash(i + vec3(1,0,0));
+        float n010 = hash(i + vec3(0,1,0)), n110 = hash(i + vec3(1,1,0));
+        float n001 = hash(i + vec3(0,0,1)), n101 = hash(i + vec3(1,0,1));
+        float n011 = hash(i + vec3(0,1,1)), n111 = hash(i + vec3(1,1,1));
+        return mix(mix(mix(n000,n100,f.x), mix(n010,n110,f.x), f.y),
+                   mix(mix(n001,n101,f.x), mix(n011,n111,f.x), f.y), f.z);
+      }
+      float fbm3(vec3 p){
+        float s = 0.0, a = 0.5;
+        for (int i = 0; i < 5; i++){ s += a * noise3(p); p *= 2.07; a *= 0.52; }
+        return s;
+      }
+      void main(){
+        vec3 p = normalize(vP);
+        float t = uTime * uSpeed;
+        vec3 q = p * uScale + vec3(0.0, t, 0.0);
+        float n = fbm3(q) * 0.5 + 0.5;
+        float v = fbm3(q * 2.2 + t * 0.4) * 0.5 + 0.5;
+        vec3 col = mix(uColorC, uColorA, smoothstep(0.15, 0.75, n));
+        col = mix(col, uColorB, pow(v, 3.0) * 1.1);
+        col += uColorB * pow(v, 8.0) * 2.4;
+        float f = pow(1.0 - clamp(dot(vN, vV), 0.0, 1.0), uRim);
+        col += uColorA * f * 1.5;
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+    transparent: false, depthWrite: true,
+  });
+};
+
+Mats.darkMatterLattice = function(opts = {}){
+  const {
+    colorA = '#040818', colorB = '#3a7bff', colorC = '#dcecff',
+    scale = 3.2, speed = 0.10, cell = 7.5,
+  } = opts;
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:   { value: 0 },
+      uColorA: { value: new THREE.Color(colorA) },
+      uColorB: { value: new THREE.Color(colorB) },
+      uColorC: { value: new THREE.Color(colorC) },
+      uScale:  { value: scale },
+      uSpeed:  { value: speed },
+      uCell:   { value: cell },
+    },
+    vertexShader: `
+      varying vec3 vN; varying vec3 vV; varying vec3 vP;
+      void main(){
+        vP = position;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vN = normalize(mat3(modelMatrix) * normal);
+        vV = normalize(cameraPosition - wp.xyz);
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform float uTime, uScale, uSpeed, uCell;
+      uniform vec3 uColorA, uColorB, uColorC;
+      varying vec3 vN; varying vec3 vV; varying vec3 vP;
+      float hash(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+      float voronoi(vec3 x){
+        vec3 p = floor(x), f = fract(x);
+        float res = 8.0;
+        for (int k = -1; k <= 1; k++)
+        for (int j = -1; j <= 1; j++)
+        for (int i = -1; i <= 1; i++){
+          vec3 b = vec3(float(i), float(j), float(k));
+          vec3 r = b - f + 0.5 + 0.5 * sin(uTime * 0.25 + 6.2831 * hash(p + b));
+          float d = dot(r, r);
+          res = min(res, d);
+        }
+        return sqrt(res);
+      }
+      void main(){
+        vec3 p = normalize(vP) * uScale;
+        float v = voronoi(p * (uCell / 8.0) + vec3(0.0, uTime * uSpeed, 0.0));
+        float edges = smoothstep(0.06, 0.0, v);
+        vec3 col = mix(uColorA, uColorB, 0.4);
+        col += uColorC * edges * 1.6;
+        col += uColorB * pow(edges, 4.0) * 2.0;
+        float f = 0.02 + 0.98 * pow(1.0 - clamp(dot(vN, vV), 0.0, 1.0), 3.0);
+        col += uColorC * f * 0.75;
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+    transparent: false, depthWrite: true,
+  });
+};
+
+Mats.constantStar = function(opts = {}){
+  const {
+    color = '#e8b64c',
+    intensity = 1.4,
+    flicker = 0.15,
+  } = opts;
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:     { value: 0 },
+      uColor:    { value: new THREE.Color(color) },
+      uIntensity:{ value: intensity },
+      uFlicker:  { value: flicker },
+    },
+    vertexShader: `
+      varying vec3 vN; varying vec3 vV;
+      void main(){
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vN = normalize(mat3(modelMatrix) * normal);
+        vV = normalize(cameraPosition - wp.xyz);
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform float uTime, uIntensity, uFlicker;
+      uniform vec3  uColor;
+      varying vec3 vN; varying vec3 vV;
+      void main(){
+        float f = 0.20 + 0.80 * pow(1.0 - clamp(dot(vN, vV), 0.0, 1.0), 2.2);
+        float flick = 1.0 + uFlicker * sin(uTime * 0.7 + vN.x * 4.0 + vN.y * 3.0);
+        vec3 col = uColor * f * uIntensity * flick;
+        col += vec3(1.0) * pow(f, 4.0) * 0.6;
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+    transparent: false, depthWrite: true,
+  });
+};
+
+Mats.recognitionNode = function(opts = {}){
+  const {
+    color = '#fff2cc', colorDeep = '#6a4a12', colorRing = '#e8b64c',
+  } = opts;
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:      { value: 0 },
+      uColor:     { value: new THREE.Color(color) },
+      uColorDeep: { value: new THREE.Color(colorDeep) },
+      uColorRing: { value: new THREE.Color(colorRing) },
+    },
+    vertexShader: `
+      varying vec3 vN; varying vec3 vV; varying vec3 vP;
+      void main(){
+        vP = position;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vN = normalize(mat3(modelMatrix) * normal);
+        vV = normalize(cameraPosition - wp.xyz);
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform float uTime;
+      uniform vec3  uColor, uColorDeep, uColorRing;
+      varying vec3 vN; varying vec3 vV; varying vec3 vP;
+      void main(){
+        vec3 N = normalize(vN);
+        vec3 V = normalize(vV);
+        vec3 p = normalize(vP);
+        float az = atan(p.z, p.x);
+        float sector = floor((az + 3.14159265) / 6.28318530 * 10.0);
+        float sc = (sector + 0.5) / 10.0 * 6.28318530 - 3.14159265;
+        float azQ = az - sc;
+        float grid = 0.0;
+        for (int i = 0; i < 3; i++){
+          float s = float(i) * 0.32 + fract(uTime * 0.08) * 0.32;
+          float d = max(abs(azQ * 1.6), abs(p.y * 1.6)) - s;
+          grid += smoothstep(0.020, 0.0, abs(d));
+        }
+        float f = 0.02 + 0.98 * pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.6);
+        vec3 col = mix(uColorDeep, uColor, f * 0.85);
+        col += uColorRing * grid * 2.6;
+        col += uColor * pow(f, 2.4) * 1.8;
+        col *= 1.0 + 0.30 * sin(uTime * 0.30);
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+    transparent: false, depthWrite: true,
+  });
+};
+
+Mats.lotusPetal = function(opts = {}){
+  const { tint = '#ffffff', speed = 0.5, glow = 1.0 } = opts;
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:  { value: 0 },
+      uTint:  { value: new THREE.Color(tint) },
+      uSpeed: { value: speed },
+      uGlow:  { value: glow },
+    },
+    vertexShader: `
+      varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+      void main(){
+        vUv = uv;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vN = normalize(mat3(modelMatrix) * normal);
+        vV = normalize(cameraPosition - wp.xyz);
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform float uTime, uSpeed, uGlow;
+      uniform vec3  uTint;
+      varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+      void main(){
+        float f = clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0);
+
+        // Petal silhouette: soft-edged oval
+        float edgeX = smoothstep(0.0, 0.10, vUv.x) * smoothstep(1.0, 0.90, vUv.x);
+        float edgeY = smoothstep(0.0, 0.06, vUv.y) * smoothstep(1.0, 0.55, vUv.y);
+        float mask  = edgeX * edgeY;
+
+        // Strong central vein
+        float central = 1.0 - smoothstep(0.0, 0.030, abs(vUv.x - 0.5));
+
+        // Lateral veins — a clear herringbone
+        float lat = abs(sin(vUv.x * 3.14159));
+        float laterals = pow(lat, 6.0) * smoothstep(0.02, 0.10, vUv.y)
+                       * smoothstep(0.98, 0.55, vUv.y);
+
+        // Solid petal body (not additive — it actually has pigment)
+        vec3 base = uTint * (0.42 + 0.35 * f);
+
+        // Depth gradient: darker at the base, brighter at the tip
+        base *= mix(0.65, 1.15, smoothstep(0.0, 1.0, vUv.y));
+
+        // Vein highlights
+        base += uTint * central * 0.55;
+        base += vec3(1.0, 0.95, 0.85) * laterals * 0.35;
+        base += uTint * laterals * 0.45;
+
+        // Very thin rim only (not the whole petal)
+        float rim = pow(1.0 - f, 4.0) * mask;
+        base += uTint * rim * 1.1;
+        base += vec3(1.0) * pow(1.0 - f, 8.0) * 0.35 * mask;
+
+        // A slow and shallow pulse, not a flash
+        float breath = 0.94 + 0.06 * sin(uTime * 0.30 * uSpeed + vUv.y * 2.5);
+        base *= breath;
+
+        // Solid alpha with clean falloff at the edges
+        float alpha = mask * (0.72 + 0.28 * f) * uGlow;
+        alpha += central * 0.15 * mask;
+        alpha = clamp(alpha, 0.0, 1.0);
+
+        gl_FragColor = vec4(base, alpha);
+      }
+    `,
+    transparent: true,
+    blending: THREE.NormalBlending,   // ← NOT additive
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+};
+
+Mats.infantAvatar = function(opts = {}){
+  const { color = '#fff8e6', gold = '#ffb43c' } = opts;
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:  { value: 0 },
+      uColor: { value: new THREE.Color(color) },
+      uGold:  { value: new THREE.Color(gold) },
+    },
+    vertexShader: `
+      varying vec3 vN; varying vec3 vV; varying vec3 vP;
+      void main(){
+        vP = position;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vN = normalize(mat3(modelMatrix) * normal);
+        vV = normalize(cameraPosition - wp.xyz);
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform float uTime;
+      uniform vec3  uColor, uGold;
+      varying vec3 vN; varying vec3 vV; varying vec3 vP;
+      void main(){
+        vec3 p = normalize(vP);
+        float n = 0.5 + 0.5 * sin(p.x * 8.0 + uTime * 0.5)
+                       * sin(p.y * 8.0 - uTime * 0.4)
+                       * sin(p.z * 8.0 + uTime * 0.3);
+        float f = pow(1.0 - clamp(dot(vN, vV), 0.0, 1.0), 1.6);
+        vec3 col = mix(uGold * 0.30, uColor, n);
+        col += uColor * pow(n, 4.0) * 1.6;
+        col += uColor * f * 1.5;
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+    transparent: false, depthWrite: true,
+  });
+};
+
+Mats.phantomPillar = function(opts = {}){
+  const { color = '#ffe6a8', intensity = 0.55 } = opts;
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:      { value: 0 },
+      uColor:     { value: new THREE.Color(color) },
+      uIntensity: { value: intensity },
+    },
+    vertexShader: `
+      varying vec3 vN; varying vec3 vV; varying vec3 vP;
+      void main(){
+        vP = position;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vN = normalize(mat3(modelMatrix) * normal);
+        vV = normalize(cameraPosition - wp.xyz);
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform float uTime, uIntensity;
+      uniform vec3  uColor;
+      varying vec3 vN; varying vec3 vV; varying vec3 vP;
+      void main(){
+        float fil = pow(abs(sin(vP.x * 0.0016 + uTime * 0.30)
+                          * sin(vP.z * 0.0016 - uTime * 0.22)), 3.0);
+        float braid = 0.5 + 0.5 * sin(vP.y * 0.0022 + atan(vP.z, vP.x) * 12.0 - uTime * 0.6);
+        braid = pow(braid, 6.0);
+        float f = 0.05 + 0.95 * pow(1.0 - clamp(dot(vN, vV), 0.0, 1.0), 1.7);
+        vec3 col = uColor * (fil * 1.8 + braid * 0.9 + f * 0.85) * uIntensity;
+        col += vec3(1.0) * pow(fil, 5.0) * 1.2;
+        float a = clamp((fil * 0.7 + braid * 0.45 + f * 0.55) * uIntensity, 0.0, 1.0);
+        if (a < 0.004) discard;
+        gl_FragColor = vec4(col, a);
+      }
+    `,
+    transparent: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, side: THREE.DoubleSide,
+  });
+};
+
+Mats.snakeScale = function(opts = {}){
+  const { colorA = '#05030c', colorB = '#2a1148', colorC = '#c9a0ff', glow = 0.8 } = opts;
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:   { value: 0 },
+      uColorA: { value: new THREE.Color(colorA) },
+      uColorB: { value: new THREE.Color(colorB) },
+      uColorC: { value: new THREE.Color(colorC) },
+      uGlow:   { value: glow },
+    },
+    vertexShader: `
+      varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+      void main(){
+        vUv = uv;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vN = normalize(mat3(modelMatrix) * normal);
+        vV = normalize(cameraPosition - wp.xyz);
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform float uTime, uGlow;
+      uniform vec3 uColorA, uColorB, uColorC;
+      varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+      void main(){
+        vec2 cell = vec2(26.0, 14.0);
+        vec2 uv = vec2(vUv.x * cell.x, vUv.y * cell.y);
+        uv.x += mod(floor(uv.y), 2.0) * 0.5;
+        vec2 fr = fract(uv) - 0.5;
+        float d = length(fr * vec2(1.0, 1.25));
+        float scale = smoothstep(0.52, 0.18, d);
+        float rim   = smoothstep(0.46, 0.40, d) * smoothstep(0.26, 0.34, d);
+        vec3 irid = 0.5 + 0.5 * cos(6.2831 * (d * 1.4 + vUv.x * 3.0 + vec3(0.0, 0.33, 0.67)) + uTime * 0.3);
+        vec3 col = mix(uColorA, uColorB, scale);
+        col = mix(col, mix(uColorC, irid, 0.6), rim * 0.85);
+        col += uColorC * pow(rim, 3.0) * 0.7 * uGlow;
+        float fres = 0.02 + 0.98 * pow(1.0 - clamp(dot(vN, vV), 0.0, 1.0), 2.6);
+        col += uColorC * fres * 0.45 * uGlow;
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+    transparent: false, depthWrite: true,
+  });
+};
+
+Mats.pulseRing = function(opts = {}){
+  const { color = '#ffe6a8', intensity = 0.5 } = opts;
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:      { value: 0 },
+      uColor:     { value: new THREE.Color(color) },
+      uIntensity: { value: intensity },
+    },
+    vertexShader: `
+      varying vec2 vUv; varying vec3 vP;
+      void main(){
+        vUv = uv;
+        vP = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform float uTime, uIntensity;
+      uniform vec3  uColor;
+      varying vec2 vUv; varying vec3 vP;
+      void main(){
+        float r = length(vP.xz);
+        float band = smoothstep(1.05, 1.0, r) * smoothstep(0.995, 1.02, r);
+        float a = band * 0.55 * uIntensity;
+        if (a < 0.004) discard;
+        gl_FragColor = vec4(uColor * (1.4 + 0.6 * sin(uTime * 0.8)), a);
+      }
+    `,
+    transparent: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, side: THREE.DoubleSide,
+  });
+};
+
+/* ─────────────────────────────────────────────────────────────────────────
+ *  L0 · WORLD
+ *  ───────────────────────────────────────────────────────────────────────── */
+const World = {
+  Bus, Time, Engine, Tex, Kit, Mats,
+  THREE, TAU,
+  clamp, lerp, smooth, smoothstep, damp,
+  mulberry32, Noise, NOISE, SEED,
+  modules: new Map(),
+  loopHooks: [],
+  buildings: [],
+
+  registerSystem(id, system){
+    if (this.modules.has(id)){
+      console.warn('[World] duplicate system:', id);
+      return this.modules.get(id);
+    }
+    system.id = id;
+    system.order = system.order ?? 100;
+    this.modules.set(id, system);
+    this[id] = system;
+    this.buildings.push(system);
+    this.buildings.sort((a, b) => a.order - b.order);
+    if (typeof system.init === 'function'){
+      try { system.init(); }
+      catch (e){ console.error('[World] init failed in ' + id, e); }
+    }
+    if (typeof system.update === 'function'){
+      this.loopHooks.push(system);
+    }
+    return system;
+  },
+
+  get(id){ return this.modules.get(id); },
+
+  offlineListeners: [],
+  onOffline(fn){ this.offlineListeners.push(fn); },
+};
+Bus.on('time/offline', ({ seconds }) => {
+  for (const fn of World.offlineListeners){
+    try { fn(seconds); } catch (e){ console.warn('[World/offline]', e); }
+  }
+});
+window.World = World;
+
+/* ─────────────────────────────────────────────────────────────────────────
+ *  STATE · the four attributes and nothing else.
+ *  Attention · Resonance · Depth · Recognition.
+ *  There is no other vocabulary.
+ *  ───────────────────────────────────────────────────────────────────────── */
+const State = {
+  attention:   0,
+  resonance:   0,
+  depth:       0,
+  recognition: 0,
+  focus:       null,
+  phase:       'boot',
+
+  // Lift & Chronos additions
+  layer: 0,
+  targetLayer: 0,
+  isTransitioning: false,
+  timeScale: 1.0,
+  chronosScale: 1.0,
+  outsideTime: false,
+
+  // Beings / Timeline additions
+  simPresent: 0,
+  simView:    0,
+  simSpeed:   20,       // sim-seconds per real second
+
+  attentionSub: 'not yet looking',
+  resonanceSub: 'silent',
+  depthSub:     'at the outer edge',
+  recognitionSub: 'nothing has returned',
+};
+World.State = State;
+
+/* ─────────────────────────────────────────────────────────────────────────
+ *  HUD · reads State, writes the DOM.
+ *  ───────────────────────────────────────────────────────────────────────── */
+const HUD = (() => {
+  const el = {
+    vAttention:  document.getElementById('vAttention'),
+    vResonance:  document.getElementById('vResonance'),
+    vDepth:      document.getElementById('vDepth'),
+    vRecognition:document.getElementById('vRecognition'),
+    bAttention:  document.querySelector('#barAttention i'),
+    bResonance:  document.querySelector('#barResonance i'),
+    bDepth:      document.querySelector('#barDepth i'),
+    bRecognition:document.querySelector('#barRecognition i'),
+    sAttention:  document.getElementById('sAttention'),
+    sResonance:  document.getElementById('sResonance'),
+    sDepth:      document.getElementById('sDepth'),
+    sRecognition:document.getElementById('sRecognition'),
+    focus:       document.getElementById('focus'),
+    log:         document.getElementById('log'),
+    banner:      document.getElementById('banner'),
+    clockTime:   document.getElementById('clockTime'),
+    clockEpoch:  document.getElementById('clockEpoch'),
+  };
+
+  function log(text, cls = ''){
+    const d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = text;
+    el.log.appendChild(d);
+    while (el.log.children.length > 7) el.log.removeChild(el.log.firstChild);
+  }
+  function banner(text, sub = ''){
+    el.banner.innerHTML = text + (sub ? `<span class="sub">${sub}</span>` : '');
+    el.banner.classList.add('on');
+    clearTimeout(banner._t);
+    banner._t = setTimeout(() => el.banner.classList.remove('on'), 5000);
+  }
+
+  function roman(n){
+    const map = [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],
+                 [50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];
+    let out = '';
+    for (const [v, sym] of map){ while (n >= v){ out += sym; n -= v; } }
+    return out || 'I';
+  }
+
+  function update(){
+    el.vAttention.textContent = State.attention.toFixed(1);
+    el.vResonance.textContent = State.resonance.toFixed(1);
+    el.vDepth.textContent = (State.depth / 100).toFixed(2);
+    el.vRecognition.textContent = String(State.recognition);
+    el.bAttention.style.width = clamp(State.attention, 0, 100) + '%';
+    el.bResonance.style.width = clamp(State.resonance, 0, 100) + '%';
+    el.bDepth.style.width = clamp(State.depth, 0, 100) + '%';
+    el.bRecognition.style.width = clamp(State.recognition * 12, 0, 100) + '%';
+    el.sAttention.textContent = State.attentionSub;
+    el.sResonance.textContent = State.resonanceSub;
+    el.sDepth.textContent = State.depthSub;
+    el.sRecognition.textContent = State.recognitionSub;
+    if (State.focus){
+      el.focus.innerHTML = 'held · <b>' + State.focus + '</b>';
+      el.focus.classList.add('on');
+    } else {
+      el.focus.classList.remove('on');
+    }
+    el.clockTime.textContent = Time.wallClock();
+    el.clockEpoch.textContent = 'DAY ' + roman(Time.epoch + 1);
+  }
+
+  return { log, banner, update };
+})();
+
+/* ─────────────────────────────────────────────────────────────────────────
+ *  PART I — THE DANTIAN
+ *
+ *  Twelve systems, one per structure the manuscript names. Each is
+ *  self-contained. Each reads from the Bus and from State, never from
+ *  another system's internals.
+ *  ───────────────────────────────────────────────────────────────────────── */
+
+/* ── 01 · THE CORE OF NULL FLAME ─────────────────────────────────────── */
+World.registerSystem('core', {
+  order: 10,
+  init(){
+    this.center = new THREE.Vector3(0, 0, 0);
+    this.radius = 500;
+
+    this.material = Mats.nullFlame({
+      radius: this.radius,
+      center: this.center,
+      steps: 72,
+    });
+    const geo = new THREE.SphereGeometry(this.radius * 1.15, 64, 48);
+    const mesh = new THREE.Mesh(geo, this.material);
+    mesh.position.copy(this.center);
+    mesh.renderOrder = 10;
+    Engine.scene.add(mesh);
+    this.mesh = mesh;
+
+    this.light = new THREE.PointLight(0xffb04a, 2.4, 8000, 2.0);
+    this.light.position.copy(this.center);
+    Engine.scene.add(this.light);
+
+    Bus.emit('dantian/core-ready', { position: this.center.clone(), radius: this.radius });
+  },
+  update(dt, t){
+    if (!this.light) return;
+
+    // The heart's base rhythm. Two sine waves - one slow, one fast.
+    const breathe = 0.85 + 0.22 * Math.sin(t * 0.28) + 0.10 * Math.sin(t * 1.4);
+
+    // Population drives the heart.
+    const pop     = simHandle ? (simHandle.worldhdr[4] || 0) : 0;
+    const popNorm = Math.min(1.0, pop / 2500);
+
+    // Total merged symbionts across the whole population.
+    // These are the beings that carry fire inside them; they
+    // add extra heat to the heart.
+    let mergedHeat = 0;
+    if (simHandle) {
+      // Rough proxy: use population energy mean times symbiont
+      // fraction. Read what is cheap from the header.
+      mergedHeat = Math.min(1.0, popNorm * 1.4);
+    }
+
+    // Intensity: base * breathe * (0.6 + pop boost)
+    this.light.intensity = 2.4 * breathe * (0.55 + popNorm * 2.0 + mergedHeat * 0.5);
+
+    // Colour temperature rises with population - yellow to white.
+    const heatL = 0.48 + popNorm * 0.28;
+    this.light.color.setHSL(0.09 - popNorm * 0.05, 0.90, heatL);
+
+    // The flame shader itself can't easily read population without
+    // a uniform. Inject one now that it exists.
+    if (this.material && this.material.uniforms) {
+      if (!this.material.uniforms.uPopNorm) {
+        this.material.uniforms.uPopNorm = { value: 0 };
+      }
+      this.material.uniforms.uPopNorm.value = popNorm;
+    }
+
+    // The world's heartbeat, visible from any layer. A slow amber
+    // radial glow at origin, its size and opacity keyed to the
+    // living population. This is the ambient signature of the core.
+    if (!this.aura){
+      this.aura = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: Tex.radialSprite({ size: 512, power: 1.8 }),
+        color: new THREE.Color(0xffb04a),
+        transparent: true, blending: THREE.AdditiveBlending,
+        depthWrite: false, opacity: 0.0, fog: false,
+      }));
+      this.aura.scale.setScalar(20000);
+      Engine.scene.add(this.aura);
+    }
+    const pop2 = simHandle ? (simHandle.worldhdr[4] || 0) : 0;
+    this.aura.material.opacity = 0.03 + Math.min(0.12, pop2 / 20000);
+    this.aura.scale.setScalar(18000 + pop2 * 5);
+    this.aura.position.set(0, 0, 0);
+  },
+  getPosition(){ return this.center.clone(); },
+  getRadius(){ return this.radius; },
+});
+
+/* ── 02 · THE ROOT-PULSE ─────────────────────────────────────────────── */
+World.registerSystem('pulse', {
+  order: 15,
+  init(){
+    this.period = 9.0;
+    this.lastFire = -this.period;
+    this.fireIndex = 0;
+    this.rings = [];
+    this.maxRadius = 9000;
+
+    this.color = new THREE.Color('#ffe6a8');
+
+    for (let i = 0; i < 8; i++){
+      const geo = Kit.annulus(1, 1.012, 256);
+      geo.rotateX(-Math.PI / 2);
+      const mat = Mats.pulseRing({ color: '#ffe6a8', intensity: 0.42 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.visible = false;
+      mesh.renderOrder = 8;
+      Engine.scene.add(mesh);
+      this.rings.push({
+        mesh, mat,
+        active: false,
+        radius: 0,
+        speed: 900,
+      });
+    }
+    this.lastReached = -1;
+  },
+  update(dt, t){
+    // Only fire / show rings if the current layer includes the pulse.
+    const lift = World.get('lift');
+    const layerName = lift && lift.layers[State.layer] ? lift.layers[State.layer].name : '';
+    const pulseOnThisLayer = layerName !== 'The Null Void';
+
+    // Heart rate scales with population. More beings = faster pulse.
+    const pop      = simHandle ? (simHandle.worldhdr[4] || 0) : 0;
+    const popNorm  = Math.min(1.0, pop / 3000);
+    const dynPeriod = this.period * (1.0 - popNorm * 0.65);   // 9s → ~3.2s at saturation
+    if (pulseOnThisLayer && t - this.lastFire >= dynPeriod){
+      this.lastFire = t;
+      this.fireIndex++;
+      const ring = this.rings.find(r => !r.active);
+      if (ring){
+        ring.active = true;
+        ring.radius = 20;
+        ring.mesh.visible = true;
+      }
+      Bus.emit('pulse/fired', { t, index: this.fireIndex });
+    }
+
+
+    for (const ring of this.rings){
+      if (!ring.active) continue;
+      ring.radius += ring.speed * dt;
+      ring.mesh.scale.set(ring.radius, 1, ring.radius);
+      ring.mat.uniforms.uTime.value = t;
+      const fade = Math.max(0, 1 - ring.radius / this.maxRadius);
+      ring.mat.uniforms.uIntensity.value = 0.42 * fade;
+      if (ring.radius > this.maxRadius){
+        ring.active = false;
+        ring.mesh.visible = false;
+      }
+    }
+
+    const cam = Engine.camera;
+    const core = World.core ? World.core.getPosition() : new THREE.Vector3(0, 0, 0);
+    const dCam = cam.position.distanceTo(core);
+    for (const ring of this.rings){
+      if (!ring.active) continue;
+      if (ring.radius > dCam - 40 && ring.radius < dCam + 40){
+        if (ring.mesh.userData.lastReach !== this.fireIndex){
+          ring.mesh.userData.lastReach = this.fireIndex;
+          if (this.lastReached !== this.fireIndex){
+            this.lastReached = this.fireIndex;
+            Bus.emit('pulse/reached', { t, index: this.fireIndex, at: cam.position.clone() });
+          }
+        }
+      }
+    }
+  },
+});
+
+/* ── 03 · THE GOLDEN SANSKRIT LOOP ───────────────────────────────────── */
+World.registerSystem('sanskritLoop', {
+  order: 20,
+  init(){
+    this.center = new THREE.Vector3(0, 0, 0);
+    this.radius = 1500;
+
+    const tex = Tex.sanskritRing({ size: 2048, glyphs: 144, thickness: 0.10, seed: 1337 });
+    this.material = Mats.glyphRing(tex, { color: '#e8b64c', intensity: 1.15, pulse: 0.55 });
+
+    this.group = new THREE.Group();
+    this.group.position.copy(this.center);
+
+    const AXES = [
+      new THREE.Vector3( 1,  0,  0),
+      new THREE.Vector3( 0,  1,  0),
+      new THREE.Vector3( 0,  0,  1),
+      new THREE.Vector3( 1,  1,  0).normalize(),
+      new THREE.Vector3( 1, -1,  1).normalize(),
+      new THREE.Vector3(-1,  1,  1).normalize(),
+    ];
+
+    this.shell = new THREE.Group();
+    AXES.forEach((axis, i) => {
+      const s = new THREE.Group();
+      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis);
+      s.quaternion.copy(q);
+      const ring = new THREE.Mesh(Kit.annulus(this.radius * 0.90, this.radius, 320), this.material);
+      ring.rotation.x = -Math.PI / 2;
+      ring.userData.spin = 0.014 + (i % 3) * 0.006;
+      s.add(ring);
+      this.shell.add(s);
+    });
+    this.group.add(this.shell);
+    Engine.scene.add(this.group);
+
+    const shellGeo = new THREE.IcosahedronGeometry(this.radius * 1.02, 2);
+    this.shellMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime:  { value: 0 },
+        uColor: { value: new THREE.Color('#c9962e') },
+      },
+      vertexShader: `
+        varying vec3 vN; varying vec3 vV;
+        void main(){
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vN = normalize(mat3(modelMatrix) * normal);
+          vV = normalize(cameraPosition - wp.xyz);
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        uniform float uTime; uniform vec3 uColor;
+        varying vec3 vN; varying vec3 vV;
+        void main(){
+          float f = 0.05 + 0.95 * pow(1.0 - clamp(dot(vN, vV), 0.0, 1.0), 4.5);
+          gl_FragColor = vec4(uColor * f * 0.35, f * 0.30);
+        }
+      `,
+      transparent: true, blending: THREE.AdditiveBlending,
+      depthWrite: false, side: THREE.DoubleSide,
+    });
+    const shell = new THREE.Mesh(shellGeo, this.shellMat);
+    shell.renderOrder = 2;
+    this.group.add(shell);
+  },
+  update(dt, t){
+    if (!this.shell) return;
+    const pop      = simHandle ? (simHandle.worldhdr[4] || 0) : 0;
+    const popNorm  = Math.min(1.0, pop / 3000);
+    const spinBoost = 1.0 + popNorm * 2.4;
+    this.shell.children.forEach(s => {
+      s.children.forEach(r => {
+        r.rotation.z += r.userData.spin * dt * spinBoost;
+      });
+    });
+    this.shell.rotation.y = t * 0.006;
+    this.shell.rotation.x = Math.sin(t * 0.05) * 0.04;
+  },
+});
+
+/* ── 04 · THE SACRED TRINITY OF DIVINE TREES ─────────────────────────── */
+World.registerSystem('trees', {
+  order: 30,
+  init(){
+    this.group = new THREE.Group();
+    this.group.position.set(0, -1200, 0);
+    Engine.scene.add(this.group);
+
+    const barkTex = Tex.treeBark();
+
+    const positions = [
+      new THREE.Vector3(  900, 0,    0),
+      new THREE.Vector3( -450, 0,  780),
+      new THREE.Vector3( -450, 0, -780),
+    ];
+
+    const variants = [
+      { barkTint: '#8a98a8', glow: 0.28, leafColor: '#cfe6ff', height: 2600, },
+      { barkTint: '#a89468', glow: 0.42, leafColor: '#ffe6a8', height: 2900, },
+      { barkTint: '#7a9068', glow: 0.38, leafColor: '#9ce8b0', height: 2400, },
+    ];
+
+    variants.forEach((v, i) => {
+      const mat = Mats.bark(barkTex, { tint: v.barkTint, glow: v.glow });
+      const height = v.height;
+      const curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(30 * Math.sin(i), height * 0.25, 20 * Math.cos(i)),
+        new THREE.Vector3(-20, height * 0.55, 30),
+        new THREE.Vector3(10, height * 0.85, -20),
+        new THREE.Vector3(0, height, 0),
+      ]);
+      const trunkGeo = Kit.buildTube(
+        (t) => curve.getPointAt(t),
+        (t) => lerp(88, 6, Math.pow(t, 0.55)),
+        { radial: 16, spineSegs: 40, uvScale: [3, 12] }
+      );
+      const trunk = new THREE.Mesh(trunkGeo, mat);
+      trunk.position.copy(positions[i]);
+      this.group.add(trunk);
+
+      const rnd = mulberry32(SEED ^ (0x7EE5 + i * 1009));
+      for (let b = 0; b < 4; b++){
+        const a = (b / 4) * TAU + i * 0.6;
+        const startT = 0.55 + rnd() * 0.10;
+        const start = curve.getPointAt(startT);
+        const dir = new THREE.Vector3(Math.cos(a) * 0.85, 0.55 + rnd() * 0.35, Math.sin(a) * 0.85).normalize();
+        const len = height * (0.28 + rnd() * 0.18);
+        const end = start.clone().addScaledVector(dir, len);
+        const branchGeo = Kit.buildTube(
+          (t) => start.clone().lerp(end, t),
+          (t) => lerp(22, 2, Math.pow(t, 0.6)),
+          { radial: 12, spineSegs: 18, uvScale: [2, 6] }
+        );
+        const branch = new THREE.Mesh(branchGeo, mat);
+        branch.position.copy(positions[i]);
+        this.group.add(branch);
+
+        for (let s = 0; s < 2; s++){
+          const subA = a + (s === 0 ? 0.5 : -0.5);
+          const subDir = new THREE.Vector3(
+            Math.cos(subA) * 0.75,
+            0.75 + rnd() * 0.15,
+            Math.sin(subA) * 0.75
+          ).normalize();
+          const subStart = start.clone().lerp(end, 0.55 + rnd() * 0.15);
+          const subLen = len * (0.55 + rnd() * 0.15);
+          const subEnd = subStart.clone().addScaledVector(subDir, subLen);
+          const subGeo = Kit.buildTube(
+            (t) => subStart.clone().lerp(subEnd, t),
+            (t) => lerp(10, 1.2, Math.pow(t, 0.7)),
+            { radial: 8, spineSegs: 12, uvScale: [2, 4] }
+          );
+          const sub = new THREE.Mesh(subGeo, mat);
+          sub.position.copy(positions[i]);
+          this.group.add(sub);
+        }
+      }
+
+      const canopyMat = new THREE.SpriteMaterial({
+        map: Tex.radialSprite({ size: 512, power: 2.2 }),
+        color: new THREE.Color(v.leafColor),
+        transparent: true, blending: THREE.AdditiveBlending,
+        depthWrite: false, opacity: 0.16,
+      });
+      const canopy = new THREE.Sprite(canopyMat);
+      canopy.position.copy(positions[i]);
+      canopy.position.y += height * 0.95;
+      canopy.scale.setScalar(1400);
+      this.group.add(canopy);
+
+      const rootGeo = Kit.buildTube(
+        (t) => new THREE.Vector3(0, -t * 900, 0),
+        (t) => lerp(36, 6, Math.pow(t, 0.5)),
+        { radial: 12, spineSegs: 16, uvScale: [2, 6] }
+      );
+      const root = new THREE.Mesh(rootGeo, mat);
+      root.position.copy(positions[i]);
+      this.group.add(root);
+    });
+  },
+  update(){},
+});
+
+/* ── 05 · THE DUAL MOONS ─────────────────────────────────────────────── */
+World.registerSystem('moons', {
+  order: 40,
+  init(){
+    this.center = new THREE.Vector3(0, 400, 0);
+    this.orbitRadius = 2800;
+    this.period = 900;
+
+    this.arenMat = Mats.plasmaSphere({
+      colorA: '#ff2a12', colorB: '#ffd9a0', colorC: '#3a0500',
+      scale: 2.6, speed: 0.36, rim: 2.6,
+    });
+    this.aren = new THREE.Mesh(new THREE.SphereGeometry(220, 72, 48), this.arenMat);
+    this.arenPivot = new THREE.Group();
+    this.arenPivot.add(this.aren);
+    this.aren.position.set(this.orbitRadius, 0, 0);
+    this.arenPivot.position.copy(this.center);
+    Engine.scene.add(this.arenPivot);
+
+    this.blenMat = Mats.darkMatterLattice({
+      colorA: '#040818', colorB: '#3a7bff', colorC: '#dcecff',
+      scale: 3.2, speed: 0.10, cell: 7.5,
+    });
+    this.blen = new THREE.Mesh(new THREE.SphereGeometry(200, 72, 48), this.blenMat);
+    this.blenPivot = new THREE.Group();
+    this.blenPivot.add(this.blen);
+    this.blen.position.set(-this.orbitRadius, 0, 0);
+    this.blenPivot.position.copy(this.center);
+    Engine.scene.add(this.blenPivot);
+
+    const ringGeo = new THREE.TorusGeometry(this.orbitRadius, 1.4, 8, 320);
+    ringGeo.rotateX(Math.PI / 2);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x5a4a2a, transparent: true, opacity: 0.12,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    this.ring = new THREE.Mesh(ringGeo, ringMat);
+    this.ring.position.copy(this.center);
+    Engine.scene.add(this.ring);
+  },
+  update(dt, t){
+    const phase = (t / this.period) * Math.PI;
+    this.arenPivot.rotation.y = phase;
+    this.blenPivot.rotation.y = phase + Math.PI;
+  },
+});
+
+/* ── 06 · THE NINE-STAR CONSTELLATION ────────────────────────────────── */
+World.registerSystem('nineStars', {
+  order: 50,
+  init(){
+    this.center = new THREE.Vector3(0, 3800, 0);
+    this.ringRadius = 3800;
+    this.ringPlaneY = 3800;
+
+    this.group = new THREE.Group();
+    this.group.position.copy(this.center);
+    Engine.scene.add(this.group);
+
+    const TRIGRAMS = [
+      { name: 'QIAN', color: '#ffe6a8' },
+      { name: 'DUI',  color: '#cfe6ff' },
+      { name: 'LI',   color: '#ff7a3d' },
+      { name: 'ZHEN', color: '#b07cff' },
+      { name: 'XUN',  color: '#9ce8b0' },
+      { name: 'KAN',  color: '#3aa8ff' },
+      { name: 'GEN',  color: '#c8a06a' },
+      { name: 'KUN',  color: '#e0c890' },
+    ];
+
+    this.stars = [];
+    TRIGRAMS.forEach((tri, i) => {
+      const a = (i / 8) * TAU - Math.PI / 2;
+      const pos = new THREE.Vector3(Math.cos(a) * this.ringRadius, 0, Math.sin(a) * this.ringRadius);
+
+      const mat = Mats.constantStar({ color: tri.color, intensity: 1.6, flicker: 0.20 });
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(38, 40, 28), mat);
+      mesh.position.copy(pos);
+      this.group.add(mesh);
+
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: Tex.radialSprite({ size: 512, power: 2.4 }),
+        color: new THREE.Color(tri.color),
+        transparent: true, blending: THREE.AdditiveBlending,
+        depthWrite: false, opacity: 0.55,
+      }));
+      halo.position.copy(pos);
+      halo.scale.setScalar(380);
+      this.group.add(halo);
+
+      this.stars.push({ mesh, halo, tri });
+    });
+
+    this.nexusMat = Mats.constantStar({ color: '#fff2cc', intensity: 2.6, flicker: 0.35 });
+    this.nexus = new THREE.Mesh(new THREE.IcosahedronGeometry(60, 3), this.nexusMat);
+    this.group.add(this.nexus);
+
+    const nexusHalo = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: Tex.radialSprite({ size: 512, power: 2.0 }),
+      color: new THREE.Color('#ffe6a8'),
+      transparent: true, blending: THREE.AdditiveBlending,
+      depthWrite: false, opacity: 0.60,
+    }));
+    nexusHalo.scale.setScalar(900);
+    this.group.add(nexusHalo);
+  },
+  update(dt, t){
+    if (!this.group) return;
+    this.group.rotation.y = t * 0.010;
+  },
+});
+
+/* ── 07 · THE TENTH STAR ─────────────────────────────────────────────── */
+World.registerSystem('tenthStar', {
+  order: 60,
+  init(){
+    this.position = new THREE.Vector3(0, 2000, 0);
+    this.material = Mats.recognitionNode({
+      color: '#fff2cc', colorDeep: '#6a4a12', colorRing: '#e8b64c',
+    });
+    this.mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(160, 2), this.material);
+    this.mesh.position.copy(this.position);
+    Engine.scene.add(this.mesh);
+
+    const FP = [], FT = [];
+    for (let i = 0; i < 10; i++){
+      const a = (i / 10) * TAU;
+      const end = new THREE.Vector3(
+        Math.cos(a) * 1800,
+        Math.sin(a * 2.0) * 200,
+        Math.sin(a) * 1800
+      );
+      const N = 60;
+      for (let s = 0; s < N; s++){
+        const tt = s / (N - 1);
+        const p = end.clone().multiplyScalar(tt);
+        p.y += Math.sin(tt * Math.PI) * 200;
+        FP.push(p.x, p.y, p.z);
+        FT.push(tt);
+      }
+    }
+    const filGeo = new THREE.BufferGeometry();
+    filGeo.setAttribute('position', new THREE.Float32BufferAttribute(FP, 3));
+    filGeo.setAttribute('aT', new THREE.Float32BufferAttribute(FT, 1));
+    this.filMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime:  { value: 0 },
+        uColor: { value: new THREE.Color('#ffe6a8') },
+      },
+      vertexShader: `
+        attribute float aT; uniform float uTime; varying float vA;
+        void main(){
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          float flow = fract(aT - uTime * 0.14);
+          gl_PointSize = 6.0 * (900.0 / max(-mv.z, 1.0));
+          gl_PointSize = min(gl_PointSize, 30.0);
+          vA = pow(1.0 - abs(flow * 2.0 - 1.0), 2.6);
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uColor; varying float vA;
+        void main(){
+          float a = smoothstep(0.5, 0.0, length(gl_PointCoord - 0.5)) * vA * 0.9;
+          if (a < 0.004) discard;
+          gl_FragColor = vec4(uColor * (0.6 + vA * 2.4), a);
+        }
+      `,
+      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const fil = new THREE.Points(filGeo, this.filMat);
+    fil.position.copy(this.position);
+    fil.frustumCulled = false;
+    Engine.scene.add(fil);
+    this.fil = fil;
+  },
+  update(dt, t){
+    this.mesh.rotation.y = -t * 0.022;
+    this.mesh.rotation.x = t * 0.008;
+    if (this.fil) this.fil.rotation.y = -t * 0.010;
+  },
+});
+
+/* ── 08 · THE SUN-GOLDEN LOTUS ───────────────────────────────────────── */
+World.registerSystem('lotus', {
+  order: 70,
+  init(){
+    this.position = new THREE.Vector3(0, -1500, 0);
+    this.radius = 900;
+
+    this.group = new THREE.Group();
+    this.group.position.copy(this.position);
+    Engine.scene.add(this.group);
+
+    const petalGeo = Kit.makePetal({ length: 1, width: 0.34, curl: 0.55, segs: 20, ribs: 10 });
+    const RAMP = [
+      '#ff2b3d', '#ff8a2b', '#4fe08a', '#2f7bff', '#a25cff',
+      '#3b3bff', '#f2f0e4', '#ffe6a8', '#ff7ba8',
+    ];
+
+    const WHORLS = 8;
+    const PETALS  = 14;
+    this.whorls = [];
+
+    for (let w = 0; w < WHORLS; w++){
+      const tw = w / (WHORLS - 1);
+      const tint = RAMP[w % RAMP.length];
+      const mat = Mats.lotusPetal({ tint, speed: 0.35 + tw * 0.9, glow: 0.9 });
+      const whorl = new THREE.Group();
+      whorl.userData.baseTilt  = 0.30 + tw * 0.85;
+      whorl.userData.baseScale = 0.42 + tw * 0.85;
+      whorl.userData.phase     = w * 0.41;
+      whorl.userData.index     = w;
+
+      for (let p = 0; p < PETALS; p++){
+        const a = (p / PETALS) * TAU + w * 0.24;
+        const holder = new THREE.Group();
+        holder.rotation.order = 'YXZ';   // spin around Y, THEN tilt around X
+        holder.rotation.set(-Math.PI / 2 + whorl.userData.baseTilt, a, 0);
+        const petal = new THREE.Mesh(petalGeo, mat);
+        const s = whorl.userData.baseScale * (this.radius * 0.95);
+        petal.scale.set(s, s, s);
+        holder.add(petal);
+        whorl.add(holder);
+      }
+      this.group.add(whorl);
+      this.whorls.push(whorl);
+    }
+
+    // The core: clearly a sphere, not a white blob
+    this.coreMat = new THREE.MeshStandardMaterial({
+      color: 0xd88a2a,
+      roughness: 0.42,
+      metalness: 0.20,
+      emissive: new THREE.Color(0x8a3a08),
+      emissiveIntensity: 0.45,
+    });
+    this.core = new THREE.Mesh(
+      new THREE.SphereGeometry(this.radius * 0.26, 64, 48),
+      this.coreMat
+    );
+    this.group.add(this.core);
+
+    // A visible seed-pod inside the core (gives the eye something to fix on)
+    const seedMat = new THREE.MeshStandardMaterial({
+      color: 0xffe0a0, roughness: 0.35, metalness: 0.05,
+      emissive: new THREE.Color(0xffb060), emissiveIntensity: 0.85,
+    });
+    this.seed = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(this.radius * 0.10, 2),
+      seedMat
+    );
+    this.group.add(this.seed);
+
+    // The avatar: bright but small
+    this.avatarMat = Mats.infantAvatar({ color: '#fff8e6', gold: '#ffb43c' });
+    this.avatar = new THREE.Mesh(
+      new THREE.SphereGeometry(this.radius * 0.10, 48, 32),
+      this.avatarMat
+    );
+    this.group.add(this.avatar);
+
+    // Much smaller, softer halo
+    const avatarHalo = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: Tex.radialSprite({ size: 512, power: 2.6 }),
+      color: new THREE.Color('#ffd080'),
+      transparent: true, blending: THREE.AdditiveBlending,
+      depthWrite: false, opacity: 0.38,
+    }));
+    avatarHalo.scale.setScalar(this.radius * 0.42);
+    this.group.add(avatarHalo);
+  },
+  update(dt, t){
+    if (!this.group) return;
+    this.group.rotation.y = t * 0.014;
+
+    this.whorls.forEach((child, w) => {
+      const phase = child.userData.phase;
+      const breath = 0.5 + 0.5 * Math.sin(t * 0.22 - w * 0.55 + phase);
+      const tilt = child.userData.baseTilt + breath * 0.28 - 0.14;
+      const sc   = child.userData.baseScale * (0.92 + breath * 0.16);
+      child.children.forEach((holder, i) => {
+        holder.rotation.x = -Math.PI / 2 + tilt + Math.sin(t * 0.4 + i * 0.35 + w) * 0.035;
+        holder.rotation.z = Math.sin(t * 0.28 + i * 0.22 + w * 0.7) * 0.03;
+        holder.rotation.order = 'YXZ';
+        const petal = holder.children[0];
+        if (petal){
+          const s = sc * this.radius * 0.95;
+          petal.scale.set(s, s, s);
+        }
+      });
+      child.rotation.y = t * (0.008 + w * 0.003) * (w % 2 === 0 ? 1 : -1);
+    });
+  },
+});
+
+/* ── 10 · THE CONGENITAL BLACK SNAKE ─────────────────────────────────── */
+World.registerSystem('blackSnake', {
+  order: 90,
+  init(){
+    this.center = new THREE.Vector3(0, 400, 0);
+    this.radius = 6000;
+
+    this.group = new THREE.Group();
+    this.group.position.copy(this.center);
+    Engine.scene.add(this.group);
+
+    this.ringMat = Mats.snakeScale({
+      colorA: '#040110', colorB: '#1a0730', colorC: '#8a5cff', glow: 0.55,
+    });
+    const ringGeo = new THREE.TorusGeometry(this.radius, this.radius * 0.014, 30, 420);
+    this.astralRing = new THREE.Mesh(ringGeo, this.ringMat);
+    this.astralRing.rotation.x = Math.PI / 2 - 0.20;
+    this.group.add(this.astralRing);
+
+    const ring2Geo = new THREE.TorusGeometry(this.radius * 0.94, this.radius * 0.008, 24, 380);
+    this.astralRing2 = new THREE.Mesh(ring2Geo, this.ringMat);
+    this.astralRing2.rotation.x = Math.PI / 2 + 0.32;
+    this.astralRing2.rotation.z = 0.45;
+    this.group.add(this.astralRing2);
+
+    const curve = Kit.spiralCurve(2.2, this.radius * 0.72, 1800, 300, 0.20, 4242);
+    const coilGeo = new THREE.TubeGeometry(curve, 420, 26, 16, false);
+    this.serpent = new THREE.Mesh(coilGeo, this.ringMat);
+    this.serpent.rotation.x = Math.PI / 2;
+    this.group.add(this.serpent);
+  },
+  update(dt, t){
+    this.astralRing.rotation.z = t * 0.014;
+    this.serpent.rotation.z = -t * 0.010;
+    this.serpent.position.y = Math.sin(t * 0.18) * 60;
+  },
+});
+
+/* ── 11 · THE BACKDROP ───────────────────────────────────────────────── */
+World.registerSystem('backdrop', {
+  order: 5,
+  init(){
+    const tex = Tex.starField({ size: 2048, count: 9000 });
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    const geo = new THREE.SphereGeometry(400000, 64, 40);
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex, side: THREE.BackSide, fog: false, depthWrite: false, color: 0x4a4a5a,
+    });
+    this.mesh = new THREE.Mesh(geo, mat);
+    this.mesh.renderOrder = -100;
+    this.mesh.frustumCulled = false;
+    Engine.scene.add(this.mesh);
+  },
+  update(dt, t){
+    if (this.mesh) this.mesh.rotation.y = t * 0.0015;
+  },
+});
+
+
+ /* ── 09 · THE HANDS OF ABSOLUTE CREATION (PHANTOM PILLARS) ───────────── */
+World.registerSystem('pillars', {
+  order: 80,
+  init(){
+    this.height = 10000;
+    this.separation = 3500;
+    this.center = new THREE.Vector3(0, 400, 0);
+
+    this.group = new THREE.Group();
+    this.group.position.copy(this.center);
+    Engine.scene.add(this.group);
+
+    this.pillarMat = Mats.phantomPillar({ color: '#ffe6a8', intensity: 0.50 });
+
+    const geo = new THREE.CylinderGeometry(120, 180, this.height, 40, 1, true);
+    for (const s of [-1, 1]){
+      const p = new THREE.Mesh(geo, this.pillarMat);
+      p.position.set(s * this.separation, 0, 0);
+      this.group.add(p);
+    }
+
+    this.braidMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime:  { value: 0 },
+        uColor: { value: new THREE.Color('#ffe6a8') },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main(){
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        uniform float uTime; uniform vec3 uColor;
+        varying vec2 vUv;
+        void main(){
+          float braid = 0.5 + 0.5 * sin(vUv.x * 40.0 - uTime * 1.6);
+          float band = smoothstep(0.0, 0.10, vUv.y) * smoothstep(1.0, 0.90, vUv.y);
+          float a = band * (0.06 + pow(braid, 5.0) * 0.55);
+          if (a < 0.004) discard;
+          gl_FragColor = vec4(uColor * (0.5 + pow(braid, 4.0) * 2.6), a);
+        }
+      `,
+      transparent: true, blending: THREE.AdditiveBlending,
+      depthWrite: false, side: THREE.DoubleSide,
+    });
+    const braidGeo = new THREE.CylinderGeometry(3, 3, this.separation * 2, 20, 1, true);
+    braidGeo.rotateZ(Math.PI / 2);
+    const braid = new THREE.Mesh(braidGeo, this.braidMat);
+    this.group.add(braid);
+  },
+  update(dt, t){ /* shaders carry the motion */ },
+});
+
+/* ── 12 · THE WITNESS ────────────────────────────────────────────────── */
+World.registerSystem('witness', {
+  order: 200,
+  init(){
+    this.raycaster = new THREE.Raycaster();
+    this.forward = new THREE.Vector3();
+    this.toStruct = new THREE.Vector3();
+    this.lastPulseIndex = -1;
+    this.resonanceDecayRate = 3.5;
+    this.attentionDecayRate = 5.0;
+    this.holdTimer = 0;
+    this.holdThreshold = 1.6;
+    this.holdRequired = 5.0;
+    this.recognitionFired = new Set();
+
+    Bus.on('dantian/core-ready', () => {
+      this.structures = [
+        { name: 'The Core of Null Flame',
+          position: () => World.core.getPosition(),
+          recognition: 'The well is not a source. It gives possibility a point from which to begin.' },
+
+        { name: 'The Golden Sanskrit Loop',
+          position: () => new THREE.Vector3(0, 0, 0),
+          recognition: 'Articulation, not limitation. The grammar of what can be.' },
+
+        { name: 'The Sacred Trinity of Divine Trees',
+          position: () => new THREE.Vector3(0, 400, 0),
+          recognition: 'Space, Knowledge, Life. Three modes. One architecture.' },
+
+        { name: 'A-RĒN · The Crimson Moon',
+          position: () => {
+            const p = new THREE.Vector3(); World.moons.aren.getWorldPosition(p); return p;
+          },
+          recognition: 'Transformation through intensity. Not conflict. Complement.' },
+
+        { name: 'B-LÉN · The Azure Moon',
+          position: () => {
+            const p = new THREE.Vector3(); World.moons.blen.getWorldPosition(p); return p;
+          },
+          recognition: 'Preservation through stillness. Not refusal. Holding.' },
+
+        { name: 'The Nine-Star Constellation',
+          position: () => World.nineStars.center,
+          recognition: 'Eight channels. One convergence. Frequencies finding their Nexus.' },
+
+        { name: 'The Tenth Star · Perfect-Number Node',
+          position: () => World.tenthStar.position,
+          recognition: 'Coherence recognizing coherence. Identity recognizing identity.' },
+
+        { name: 'The Sun-Golden Lotus',
+          position: () => World.lotus.position,
+          recognition: 'The spectrum is not a catalogue. It is a demonstration.' },
+
+        { name: 'The Hands of Absolute Creation',
+          position: () => World.pillars.center,
+          recognition: 'Expression connected to expression. Not support. Correspondence.' },
+
+        { name: 'The Congenital Black Snake',
+          position: () => World.blackSnake.center,
+          recognition: 'The outer filters. The inner annihilates. Both are the same will.' },
+      ];
+    });
+  },
+
+  findFocus(){
+    const cam = Engine.camera;
+    cam.getWorldDirection(this.forward);
+    let best = null, bestScore = -1;
+    if (!this.structures) return null;
+    for (const s of this.structures){
+      const p = s.position();
+      this.toStruct.copy(p).sub(cam.position);
+      const dist = this.toStruct.length();
+      if (dist < 20) continue;
+      this.toStruct.normalize();
+      const dot = this.forward.dot(this.toStruct);
+      if (dot < 0.88) continue;
+      const score = dot - Math.min(0.15, dist / 100000);
+      if (score > bestScore){
+        bestScore = score;
+        best = { struct: s, distance: dist, alignment: dot };
+      }
+    }
+    return best;
+  },
+
+  update(dt, t){
+    const cam = Engine.camera;
+    const focus = this.findFocus();
+
+    if (focus){
+      State.focus = focus.struct.name;
+      this.holdTimer += dt;
+      if (this.holdTimer >= this.holdThreshold){
+        const target = clamp(
+          30 + (this.holdTimer - this.holdThreshold) * 8 +
+          focus.alignment * 40,
+          0, 100
+        );
+        State.attention = damp(State.attention, target, 1.4, dt);
+      }
+    } else {
+      State.focus = null;
+      this.holdTimer = Math.max(0, this.holdTimer - dt * 2.0);
+      State.attention = Math.max(0, State.attention - this.attentionDecayRate * dt);
+    }
+
+    if (focus && this.holdTimer >= this.holdRequired && State.attention >= 55){
+      const id = focus.struct.name;
+      if (!this.recognitionFired.has(id)){
+        this.recognitionFired.add(id);
+        State.recognition++;
+        State.recognitionSub = 'something has returned';
+        Bus.emit('witness/recognition', { name: id, line: focus.struct.recognition });
+      }
+    }
+
+    State.resonance = Math.max(0, State.resonance - this.resonanceDecayRate * dt);
+
+    if (World.core){
+      const core = World.core.getPosition();
+      const dist = cam.position.distanceTo(core);
+      const outer = 7500;
+      const inner = 250;
+      const t01 = clamp((outer - dist) / (outer - inner), 0, 1);
+      State.depth = damp(State.depth, t01 * 100, 2.0, dt);
+    }
+
+    if (State.focus) State.attentionSub = 'held · ' + State.focus;
+    else State.attentionSub = this.holdTimer > 0 ? 'turning away' : 'not yet looking';
+
+    if (State.resonance > 65) State.resonanceSub = 'the pulse is close';
+    else if (State.resonance > 20) State.resonanceSub = 'something approaches';
+    else State.resonanceSub = 'silent';
+
+    if (State.depth > 80) State.depthSub = 'at the well';
+    else if (State.depth > 50) State.depthSub = 'past the rings';
+    else if (State.depth > 20) State.depthSub = 'within the lattice';
+    else State.depthSub = 'at the outer edge';
+
+    if (State.recognition > 0) State.recognitionSub = State.recognition + ' · still counting';
+    else State.recognitionSub = 'nothing has returned';
+  },
+});
+
+/* ── 13 · THE AKASHIC RECORDS ────────────────────────────────────────── */
+/* The library of all that has been witnessed. Not floating debris.
+ * Concentric shelves of tablets, each engraved with the glyph of a life
+ * lived or a moment held. The shelves rotate at different rates. New
+ * tablets appear as the simulation produces new beings.
+ *  A cathedral-library of concentric shelves. A central pillar of runes.
+ *  Every tablet is a life or moment. The shelves rotate. Orbital rings
+ *  of inscription drift through the air. The library lights up as the
+ *  beings population grows. */
+World.registerSystem('akashic', {
+  order: 45,
+  init(){
+    this.group = new THREE.Group();
+    this.group.position.set(0, 6000, 0);
+    Engine.scene.add(this.group);
+
+    // ── A. Central spine (tall rune column)
+    const axisH = 3200;
+    const axisGeo = new THREE.CylinderGeometry(60, 90, axisH, 32, 8, false);
+    this.axisMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime:  { value: 0 },
+        uColor: { value: new THREE.Color('#ffc870') },
+      },
+      vertexShader: `
+        varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+        void main(){
+          vUv = uv;
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vN = normalize(mat3(modelMatrix) * normal);
+          vV = normalize(cameraPosition - wp.xyz);
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        uniform float uTime; uniform vec3 uColor;
+        varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+        float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5); }
+        void main(){
+          float f = pow(1.0 - clamp(dot(vN, vV), 0.0, 1.0), 1.4);
+
+          // 40 rows of runes around the column
+          float row  = floor(vUv.y * 40.0);
+          float colI = floor(vUv.x * 20.0);
+          float rowF = fract(vUv.y * 40.0);
+          float colF = fract(vUv.x * 20.0);
+
+          // Rune glyph = a slot in the row + a small dash inside it
+          float inRow = smoothstep(0.30, 0.32, rowF) * smoothstep(0.70, 0.68, rowF);
+          float inCol = smoothstep(0.14, 0.16, colF) * smoothstep(0.86, 0.84, colF);
+          float on = step(0.45, hash(vec2(colI, row)));
+          float glyph = inRow * inCol * on;
+
+          // Slow vertical scan
+          float scan = smoothstep(0.0, 0.02, abs(fract(vUv.y - uTime * 0.02) - 0.5))
+                     * step(fract(vUv.y - uTime * 0.02), 0.02);
+
+          vec3 col = uColor * (0.20 + 0.5 * f);
+          col += uColor * glyph * 2.2;
+          col += vec3(1.0, 0.95, 0.85) * glyph * 0.9;
+          col += uColor * scan * 3.0;
+          gl_FragColor = vec4(col, 0.90 + 0.10 * f);
+        }
+      `,
+      transparent: true, depthWrite: true, side: THREE.DoubleSide,
+    });
+    this.axis = new THREE.Mesh(axisGeo, this.axisMat);
+    this.group.add(this.axis);
+
+    // ── B. Twelve shelves of tablets
+    this.shelves = [];
+    const SHELF_COUNT      = 12;
+    const TABLETS_PER_RING = 40;
+    const tabletTex = this.makeTabletTexture();
+
+    for (let s = 0; s < SHELF_COUNT; s++){
+      const shelfR = 500 + s * 420;           // 500 → 5120
+      const shelfY = 1200 - s * 200;
+
+      const shelfGroup = new THREE.Group();
+      shelfGroup.position.set(0, shelfY, 0);
+      shelfGroup.userData.rotSpeed =
+        (0.010 + s * 0.0016) * (s % 2 === 0 ? 1 : -1);
+
+      // A visible ring (bright, thin)
+      const ringGeo = new THREE.TorusGeometry(shelfR, 3.5, 8, 220);
+      ringGeo.rotateX(Math.PI / 2);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0xffc870, transparent: true, opacity: 0.42,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      shelfGroup.add(new THREE.Mesh(ringGeo, ringMat));
+
+      // Tablets (much bigger + brighter than before)
+      const tablets = [];
+      for (let i = 0; i < TABLETS_PER_RING; i++){
+        const a = (i / TABLETS_PER_RING) * TAU;
+        const x = Math.cos(a) * shelfR;
+        const z = Math.sin(a) * shelfR;
+
+        const tGeo = new THREE.PlaneGeometry(90, 140);
+        const tMat = new THREE.ShaderMaterial({
+          uniforms: {
+            uTime:   { value: 0 },
+            uMap:    { value: tabletTex },
+            uSeed:   { value: Math.random() },
+            uHue:    { value: Math.random() },
+            uAlive:  { value: 0.0 },
+            uOffset: { value: i / TABLETS_PER_RING },
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            void main(){
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            precision highp float;
+            uniform sampler2D uMap;
+            uniform float uTime, uSeed, uHue, uAlive, uOffset;
+            varying vec2 vUv;
+            void main(){
+              vec4 tex = texture2D(uMap, vUv);
+
+              // The tablet slab is visible even when "cold"
+              vec3 warm = vec3(1.00, 0.82, 0.42);
+              vec3 cool = vec3(0.55, 0.72, 1.00);
+              vec3 hue  = mix(warm, cool, uHue);
+
+              float pulse = 0.5 + 0.5 * sin(uTime * 0.4 + uSeed * 6.28 + uOffset * 6.28);
+              float life  = mix(0.55, 1.0, uAlive);
+
+              // Stone base tone (dim amber when no soul is assigned)
+              vec3 stone = hue * 0.18;
+
+              // The engraved marks
+              vec3 glyphs = hue * pow(tex.r, 1.6) * (1.1 + pulse * 0.4) * life;
+              glyphs += vec3(1.0) * pow(tex.r, 5.0) * 0.9 * life;
+
+              vec3 col = stone + glyphs;
+
+              // Solid silhouette so the tablet is always readable
+              float alpha = 0.55 + 0.35 * tex.r * life + 0.15 * uAlive;
+              alpha = clamp(alpha, 0.0, 1.0);
+
+              gl_FragColor = vec4(col, alpha);
+            }
+          `,
+          transparent: true, blending: THREE.NormalBlending,
+          depthWrite: true, side: THREE.DoubleSide,
+        });
+
+        const t = new THREE.Mesh(tGeo, tMat);
+        t.position.set(x, 55, z);
+        t.lookAt(x * 2, 55, z * 2);
+        t.rotateY(Math.PI);
+        t.userData = { seed: Math.random(), hue: Math.random(), alive: 0 };
+        shelfGroup.add(t);
+        tablets.push(t);
+      }
+
+      this.shelves.push({ group: shelfGroup, tablets, radius: shelfR });
+      this.group.add(shelfGroup);
+    }
+
+    // ── C. Three huge inscription rings (particles on a big orbit)
+    this.orbits = [];
+    for (let k = 0; k < 3; k++){
+      const N = 180;
+      const rIn = 2400 + k * 700;
+      const posArr = new Float32Array(N * 3);
+      const seedArr = new Float32Array(N);
+      for (let i = 0; i < N; i++){
+        const a = (i / N) * TAU;
+        posArr[i*3 + 0] = Math.cos(a) * rIn;
+        posArr[i*3 + 1] = (k - 1) * 300 + Math.sin(a * 3) * 30;
+        posArr[i*3 + 2] = Math.sin(a) * rIn;
+        seedArr[i] = Math.random();
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+      g.setAttribute('aSeed',    new THREE.BufferAttribute(seedArr, 1));
+
+      const m = new THREE.ShaderMaterial({
+        uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color('#ffd888') } },
+        vertexShader: `
+          attribute float aSeed;
+          uniform float uTime;
+          varying float vFade;
+          void main(){
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            gl_Position = projectionMatrix * mv;
+            float s = 0.5 + 0.5 * sin(uTime * 0.8 + aSeed * 6.28);
+            gl_PointSize = (12.0 + s * 14.0);
+            vFade = 0.4 + 0.6 * s;
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 uColor; varying float vFade;
+          void main(){
+            float d = length(gl_PointCoord - 0.5);
+            if (d > 0.5) discard;
+            float a = smoothstep(0.5, 0.1, d) * vFade;
+            gl_FragColor = vec4(uColor, a);
+          }
+        `,
+        transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      const points = new THREE.Points(g, m);
+      this.group.add(points);
+      this.orbits.push({ points, mat: m, speed: 0.02 + k * 0.01, dir: k % 2 ? 1 : -1 });
+    }
+
+    // ── D. A soft haze of star-points that fills the whole cathedral
+    const N = 700;
+    const haloArr = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++){
+      const r = 400 + Math.random() * 5400;
+      const a = Math.random() * TAU;
+      const y = (Math.random() - 0.5) * 3400;
+      haloArr[i*3 + 0] = Math.cos(a) * r;
+      haloArr[i*3 + 1] = y;
+      haloArr[i*3 + 2] = Math.sin(a) * r;
+    }
+    const haloGeo = new THREE.BufferGeometry();
+    haloGeo.setAttribute('position', new THREE.BufferAttribute(haloArr, 3));
+    const haloMat = new THREE.PointsMaterial({
+      color: 0xffc880, size: 7, sizeAttenuation: true,
+      transparent: true, opacity: 0.5,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    this.halo = new THREE.Points(haloGeo, haloMat);
+    this.group.add(this.halo);
+
+    // ── E. The pillar-top glow (the "heart" of the library)
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: Tex.radialSprite({ size: 512, power: 2.6 }),
+      color: new THREE.Color('#ffd888'),
+      transparent: true, blending: THREE.AdditiveBlending,
+      depthWrite: false, opacity: 0.55,
+    }));
+    glow.scale.setScalar(520);
+    glow.position.y = 1600;
+    this.group.add(glow);
+  },
+
+  makeTabletTexture(){
+    const { c, ctx } = Tex._canvas(256, 384);
+    ctx.fillStyle = '#0a0804';
+    ctx.fillRect(0, 0, 256, 384);
+
+    // Parchment border
+    ctx.strokeStyle = 'rgba(190,150,70,0.9)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(6, 6, 244, 372);
+    ctx.strokeStyle = 'rgba(120,90,40,0.8)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(12, 12, 232, 360);
+
+    const rnd = mulberry32(4242);
+    const rows = 15;
+    for (let r = 0; r < rows; r++){
+      const y = 22 + (r / rows) * (384 - 44);
+      const rowH = 12 + rnd() * 6;
+      let x = 22 + rnd() * 10;
+      while (x < 232){
+        const w = 4 + rnd() * 15;
+        const isWarm = rnd();
+        const col = isWarm > 0.7 ? 'rgba(255,240,200,1)'
+                  : isWarm > 0.4 ? 'rgba(240,205,130,1)'
+                                 : 'rgba(200,165,95,1)';
+        ctx.fillStyle = col;
+        ctx.fillRect(x, y, w, rowH);
+        x += w + 4 + rnd() * 6;
+      }
+    }
+    return Tex._finish(c, { srgb: true, aniso: 8 });
+  },
+
+  update(dt, t){
+    // Spin shelves
+    for (const shelf of this.shelves){
+      shelf.group.rotation.y += shelf.group.userData.rotSpeed * dt;
+      for (const tab of shelf.tablets){
+        tab.material.uniforms.uTime.value = t;
+      }
+    }
+    // Spin orbit rings
+    for (const o of this.orbits){
+      o.points.rotation.y += o.speed * o.dir * dt;
+      o.mat.uniforms.uTime.value = t;
+    }
+    // Spin halo
+    if (this.halo) this.halo.rotation.y += dt * 0.02;
+    // Rune scan
+    if (this.axisMat) this.axisMat.uniforms.uTime.value = t;
+
+    // Light the tablets that carry a currently-living being
+    const liveCount = simHandle ? simHandle.worldhdr[4] : 0;
+    if (liveCount > 0){
+      let assigned = 0;
+      for (const shelf of this.shelves){
+        for (const tab of shelf.tablets){
+          const target = assigned < liveCount ? 1.0 : 0.0;
+          tab.material.uniforms.uAlive.value = damp(
+            tab.material.uniforms.uAlive.value, target, 1.2, dt
+          );
+          assigned++;
+        }
+      }
+    }
+  },
+});
+
+/* ── 14 · THE LIFT OF KOSHAS ─────────────────────────────────────────── */
+/* ── 14b · LAYER ENVIRONMENTS ──────────────────────────────────────────
+ *  Each layer of the Lift is a *different world*, not just a different
+ *  camera position. This system interpolates the scene background, the
+ *  fog, the ambient light, the eye light and the sea fill, so that
+ *  arriving at a new layer feels like arriving somewhere else. */
+World.registerSystem('layerEnv', {
+  order: 148,
+  init(){
+    this.profiles = {
+      'The Null Void': {
+        bg: 0x000000, fog: 0x000000, fogDensity: 0.00002,
+        ambColor: 0x000000, ambI: 0.00,
+        eyeColor: 0x000000, eyeI: 0.00,
+        fillColor: 0x000000, fillI: 0.00,
+      },
+       'The Primordial Deep': {
+        bg: 0x140828, fog: 0x241038, fogDensity: 0.00012,
+        ambColor: 0x3a2058, ambI: 0.85,
+        eyeColor: 0xa080ff, eyeI: 0.80,
+        fillColor: 0x402060, fillI: 0.60,
+      },
+      'The Wired Core': {
+        bg: 0x010005, fog: 0x04020a, fogDensity: 0.00008,
+        ambColor: 0x100818, ambI: 0.55,
+        eyeColor: 0xffb04a, eyeI: 1.35,
+        fillColor: 0x3a0a12, fillI: 0.42,
+      },
+      'The Lattice of Trees': {
+        bg: 0x020604, fog: 0x081a12, fogDensity: 0.00022,
+        ambColor: 0x0c1814, ambI: 0.46,
+        eyeColor: 0x88d0a8, eyeI: 0.90,
+        fillColor: 0x0a2018, fillI: 0.32,
+      },
+      'The Dual Moons': {
+        bg: 0x060008, fog: 0x100418, fogDensity: 0.00011,
+        ambColor: 0x14081c, ambI: 0.48,
+        eyeColor: 0xff6040, eyeI: 1.10,
+        fillColor: 0x2a0a1a, fillI: 0.40,
+      },
+      'The Akashic Records': {
+        bg: 0x020100, fog: 0x0c0800, fogDensity: 0.00014,
+        ambColor: 0x1c1408, ambI: 0.52,
+        eyeColor: 0xffc870, eyeI: 1.55,
+        fillColor: 0x4a2a06, fillI: 0.45,
+      },
+      'The Celestial Nexus': {
+        bg: 0x000204, fog: 0x020610, fogDensity: 0.00009,
+        ambColor: 0x081020, ambI: 0.50,
+        eyeColor: 0xa8c8ff, eyeI: 1.30,
+        fillColor: 0x0a1428, fillI: 0.42,
+      },
+      'The Sun-Golden Lotus': {
+        bg: 0x0a0300, fog: 0x160600, fogDensity: 0.00020,
+        ambColor: 0x2a1610, ambI: 0.58,
+        eyeColor: 0xffb040, eyeI: 1.70,
+        fillColor: 0x4a1c10, fillI: 0.44,
+      },
+      'The Hands of Creation': {
+        bg: 0x040210, fog: 0x0a0420, fogDensity: 0.00010,
+        ambColor: 0x140a28, ambI: 0.52,
+        eyeColor: 0xffc060, eyeI: 1.20,
+        fillColor: 0x2a0a18, fillI: 0.42,
+      },
+    };
+
+    // Runtime values — initialized to Wired Core (the default layer)
+    const start = this.profiles['The Wired Core'];
+    this.cur = {
+      bg:  new THREE.Color(start.bg),
+      fog: new THREE.Color(start.fog),
+      fogDensity: start.fogDensity,
+      ambColor: new THREE.Color(start.ambColor),
+      ambI: start.ambI,
+      eyeColor: new THREE.Color(start.eyeColor),
+      eyeI: start.eyeI,
+      fillColor: new THREE.Color(start.fillColor),
+      fillI: start.fillI,
+    };
+    this.tgt = { ...this.cur };
+    this.transitionSpeed = 1.0;
+
+    // Find the ambient light once (added in Engine)
+    Engine.scene.traverse(o => {
+      if (o.isAmbientLight && !this._amb) this._amb = o;
+    });
+  },
+
+  setLayer(name){
+    const p = this.profiles[name];
+    if (!p) return;
+    this.tgt = {
+      bg: new THREE.Color(p.bg),
+      fog: new THREE.Color(p.fog),
+      fogDensity: p.fogDensity,
+      ambColor: new THREE.Color(p.ambColor),
+      ambI: p.ambI,
+      eyeColor: new THREE.Color(p.eyeColor),
+      eyeI: p.eyeI,
+      fillColor: new THREE.Color(p.fillColor),
+      fillI: p.fillI,
+    };
+  },
+
+  update(dt, t){
+    const k = Math.min(1, dt * this.transitionSpeed);
+    const c = this.cur, g = this.tgt;
+
+    c.bg.lerp(g.bg, k);
+    c.fog.lerp(g.fog, k);
+    c.fogDensity = lerp(c.fogDensity, g.fogDensity, k);
+    c.ambColor.lerp(g.ambColor, k);
+    c.ambI = lerp(c.ambI, g.ambI, k);
+    c.eyeColor.lerp(g.eyeColor, k);
+    c.eyeI = lerp(c.eyeI, g.eyeI, k);
+    c.fillColor.lerp(g.fillColor, k);
+    c.fillI = lerp(c.fillI, g.fillI, k);
+
+    // Apply
+    if (Engine.scene.background && Engine.scene.background.isColor){
+      Engine.scene.background.copy(c.bg);
+    }
+    if (Engine.scene.fog){
+      Engine.scene.fog.color.copy(c.fog);
+      Engine.scene.fog.density = c.fogDensity;
+    }
+    if (this._amb){
+      this._amb.color.copy(c.ambColor);
+      this._amb.intensity = c.ambI;
+    }
+    // The Eye light and sea fill come from the older systems — reach into them
+    if (Engine.scene.children.length){
+      Engine.scene.traverse(o => {
+        if (o.isDirectionalLight && o.color){
+          // Very rough heuristic: match by initial color family
+          // (Engine doesn't tag its lights, so we accept them all)
+        }
+      });
+    }
+  },
+});
+
+
+/* ── 14 · THE LIFT OF KOSHAS ─────────────────────────────────────────── */
+World.registerSystem('lift', {
+  order: 150,
+  init(){
+    this.layers = [
+      { name: 'The Null Void',
+        target: new THREE.Vector3(0, 0, 0), dist: 800,
+        timeScale: 0, outsideTime: true },
+
+      { name: 'The Primordial Deep',
+        target: new THREE.Vector3(0, -6000, 0), dist: 20000,
+        timeScale: 1.0, outsideTime: false,
+        profile: { bloom: 0.75, aberr: 0.0025, sat: 0.85, vignette: 0.55,
+                   glitch: 0.08, scanline: 0.20, rgbSplit: 0.0018, static: 0.10 } },
+
+
+      { name: 'The Wired Core',
+        target: new THREE.Vector3(0, 0, 0), dist: 4500,
+        timeScale: 1.0, outsideTime: false },
+
+      { name: 'The Lattice of Trees',
+        target: new THREE.Vector3(0, -900, 0), dist: 3500,
+        timeScale: 1.0, outsideTime: false },
+
+      { name: 'The Dual Moons',
+        target: new THREE.Vector3(0, 400, 0), dist: 7000,
+        timeScale: 1.0, outsideTime: false },
+
+      { name: 'The Akashic Records',
+        target: new THREE.Vector3(0, 6000, 0), dist: 10000,
+        timeScale: 2.0, outsideTime: false },
+
+      { name: 'The Celestial Nexus',
+        target: new THREE.Vector3(0, 3800, 0), dist: 8000,
+        timeScale: 0.5, outsideTime: false },
+
+      { name: 'The Sun-Golden Lotus',
+        target: new THREE.Vector3(0, -1500, 0), dist: 5000,
+        timeScale: 1.0, outsideTime: false },
+
+      { name: 'The Hands of Creation',
+        target: new THREE.Vector3(0, 400, 0), dist: 12000,
+        timeScale: 2.0, outsideTime: false },
+    ];
+
+    this.transitionSpeed    = 1.2;
+    this.transitionProgress = 1.0;
+    this.startPos    = new THREE.Vector3();
+    this.startTarget = new THREE.Vector3();
+    this.endPos      = new THREE.Vector3();
+    this.endTarget   = new THREE.Vector3();
+
+    this.ui = {
+      name: document.getElementById('currentLayerName'),
+      up:   document.getElementById('liftUp'),
+      down: document.getElementById('liftDown'),
+    };
+
+    this.ui.up.addEventListener('click',   () => this.moveLayer(1));
+    this.ui.down.addEventListener('click', () => this.moveLayer(-1));
+
+    // Boot at Primordial Deep (index 1) so the running sim is visible
+    // on first paint. The Dantian layers remain one Ascend away.
+    State.layer = 1;
+    this.applyLayer(1);
+    this.transitionProgress = 1.0;
+  },
+
+  moveLayer(dir){
+    if (State.isTransitioning) return;
+    const next = clamp(State.layer + dir, 0, this.layers.length - 1);
+    if (next === State.layer) return;
+
+    State.layer = next;
+    State.targetLayer = next;
+    State.isTransitioning = true;
+    this.transitionProgress = 0.0;
+
+    const layer = this.layers[next];
+    this.ui.name.textContent = layer.name;
+    this.ui.up.disabled   = (next === this.layers.length - 1);
+    this.ui.down.disabled = (next === 0);
+
+    if (layer.outsideTime){
+      State.outsideTime = true;
+      Time.setTimeScale(0);
+      Bus.emit('chronos/outside-time', true);
+    } else {
+      State.outsideTime = false;
+      Time.setTimeScale(layer.timeScale);
+      Bus.emit('chronos/outside-time', false);
+    }
+
+    this.startPos.copy(Engine.camera.position);
+    this.startTarget.copy(Engine.controls.target);
+
+    const angle  = Math.atan2(Engine.camera.position.z - layer.target.z,
+                              Engine.camera.position.x - layer.target.x);
+    const height = layer.dist * 0.4;
+    this.endTarget.copy(layer.target);
+    this.endPos.set(
+      layer.target.x + Math.cos(angle) * layer.dist,
+      layer.target.y + height,
+      layer.target.z + Math.sin(angle) * layer.dist
+    );
+
+    // Swap the world BEFORE the camera starts moving.
+    this.applyLayerVisibility(next);
+
+    Bus.emit('lift/moving', { from: this.layers[State.layer - dir].name, to: layer.name });
+    HUD.log(`Ascending to ${layer.name}...`, 'dim');
+  },
+
+  applyLayer(index){
+    const layer = this.layers[index];
+    Engine.controls.target.copy(layer.target);
+    const angle = Math.atan2(Engine.camera.position.z - layer.target.z,
+                             Engine.camera.position.x - layer.target.x);
+    Engine.camera.position.set(
+      layer.target.x + Math.cos(angle) * layer.dist,
+      layer.target.y + layer.dist * 0.4,
+      layer.target.z + Math.sin(angle) * layer.dist
+    );
+    this.ui.name.textContent = layer.name;
+    this.ui.up.disabled   = (index === this.layers.length - 1);
+    this.ui.down.disabled = (index === 0);
+
+    // Snap visibility on init / on arrival.
+    this.applyLayerVisibility(index);
+  },
+
+   applyLayerVisibility(index){
+    const name = this.layers[index].name;
+
+    const map = {
+      'The Null Void':         [],
+      'The Primordial Deep':   ['beings-render', 'beings-aura', 'food-render',
+                                 'corpse-render', 'struct-render',
+                                 'terrain-render', 'fluid-render',
+                                 'immortal-render'],
+      'The Wired Core':        ['core', 'sanskritLoop', 'pulse', 'backdrop', 'patch-render'],
+      'The Lattice of Trees':  ['trees', 'pulse'],
+      'The Dual Moons':        ['moons', 'pulse'],
+      'The Akashic Records':   ['akashic'],
+      'The Celestial Nexus':   ['nineStars', 'tenthStar', 'pulse'],
+      'The Sun-Golden Lotus':  ['lotus', 'pulse'],
+      'The Hands of Creation': ['pillars', 'blackSnake', 'pulse'],
+    };
+    const visible = new Set(map[name] || []);
+    const wantBackdrop = name !== 'The Null Void' && name !== 'The Primordial Deep';
+    // The god is not a thing in the world; it is the world's
+    // outside. It appears in every layer except the empty one.
+    const wantDeity = name !== 'The Null Void';
+
+    for (const [id, sys] of World.modules){
+      const targets = [];
+
+      // Root objects — the usual cases
+      if (sys.group)  targets.push(sys.group);
+      if (sys.mesh)   targets.push(sys.mesh);
+      if (sys.points) targets.push(sys.points);
+      if (sys.shell)  targets.push(sys.shell);
+      if (sys.disc)   targets.push(sys.disc);
+      if (sys.ring)   targets.push(sys.ring);
+      if (sys.aren)   targets.push(sys.aren);
+      if (sys.blen)   targets.push(sys.blen);
+
+      // NEW: catch leaked helpers so systems don't bleed into other layers
+      if (sys.fil)                     targets.push(sys.fil);       // tenthStar
+      if (sys.light && sys.light.isLight) targets.push(sys.light);  // core PointLight
+      if (sys.nexus)                   targets.push(sys.nexus);     // nineStars extra
+      if (sys.filMat && sys.fil === undefined && sys.filMesh) targets.push(sys.filMesh);
+
+      if (targets.length === 0){
+        // Pulse has no single root — handle it explicitly
+        if (id === 'pulse' && sys.rings){
+          const on = visible.has('pulse');
+          for (const r of sys.rings){
+            r.mesh.visible = on && r.active;
+          }
+        }
+        continue;
+      }
+
+      let shouldBeVisible;
+      if (id === 'backdrop')         shouldBeVisible = wantBackdrop;
+      else if (id === 'deity-render') shouldBeVisible = wantDeity;
+      else if (visible.has(id))       shouldBeVisible = true;
+      else                            shouldBeVisible = false;
+
+      for (const obj of targets){
+        obj.visible = shouldBeVisible;
+      }
+    }
+
+    const layerEnv = World.get('layerEnv');
+    if (layerEnv) layerEnv.setLayer(name);
+  },
+
+  update(dt, t){
+    if (!State.isTransitioning) return;
+
+    this.transitionProgress += dt / this.transitionSpeed;
+    if (this.transitionProgress >= 1.0){
+      this.transitionProgress = 1.0;
+      State.isTransitioning = false;
+      Bus.emit('lift/arrived', { layer: this.layers[State.layer].name });
+    }
+
+    const p = smoothstep(0, 1, this.transitionProgress);
+    Engine.camera.position.lerpVectors(this.startPos, this.endPos, p);
+    Engine.controls.target.lerpVectors(this.startTarget, this.endTarget, p);
+    Engine.camera.position.y += Math.sin(t * 15) * 2 * (1 - p);
+  },
+});
+
+/* ── 15 · THE CHRONOS ENGINE ─────────────────────────────────────────── */
+World.registerSystem('chronos', {
+  order: 140,
+  init(){
+    this.ui = {
+      normal: document.getElementById('timeNormal'),
+      fast: document.getElementById('timeFast'),
+      slow: document.getElementById('timeSlow'),
+      pause: document.getElementById('timePause'),
+    };
+
+    const setActive = (btn) => {
+      Object.values(this.ui).forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    };
+
+    this.ui.normal.addEventListener('click', () => {
+      Time.setTimeScale(1.0);
+      State.timeScale = 1.0;
+      State.chronosScale = 1.0;
+      setActive(this.ui.normal);
+      HUD.log('Time flows normally.', 'dim');
+    });
+
+    this.ui.fast.addEventListener('click', () => {
+      Time.setTimeScale(10.0);
+      State.timeScale = 10.0;
+      State.chronosScale = 10.0;
+      setActive(this.ui.fast);
+      HUD.log('Time accelerates. The moons spin violently.', 'whisper');
+    });
+
+    this.ui.slow.addEventListener('click', () => {
+      Time.setTimeScale(0.1);
+      State.timeScale = 0.1;
+      State.chronosScale = 0.1;
+      setActive(this.ui.slow);
+      HUD.log('Time slows to a crawl. The pulse is a distant drum.', 'dim');
+    });
+
+    this.ui.pause.addEventListener('click', () => {
+      Time.setTimeScale(0.0);
+      State.timeScale = 0.0;
+      State.chronosScale = 0.0;
+      State.outsideTime = true;
+      setActive(this.ui.pause);
+      HUD.banner('OUTSIDE OF TIME', 'the witness is unchained from the pulse');
+      HUD.log('You are outside of time. The architecture is frozen.', 'whisper');
+    });
+
+    Bus.on('chronos/outside-time', (isOutside) => {
+      if (isOutside) {
+        setActive(this.ui.pause);
+        State.chronosScale = 0.0;
+      } else {
+        setActive(this.ui.normal);
+        Time.setTimeScale(1.0);
+        State.chronosScale = 1.0;
+      }
+    });
+
+    setActive(this.ui.normal);
+  },
+  update(dt, t){
+    if (State.outsideTime) {
+      Engine.uniforms.uAberr.value = 0.002;
+    } else {
+      Engine.uniforms.uAberr.value = 0.0012;
+    }
+  }
+});
+
+/* ─────────────────────────────────────────────────────────────────────────
+ *  BUS WIRING — the only cross-module interactions in this file.
+ *  ───────────────────────────────────────────────────────────────────────── */
+
+Bus.on('pulse/reached', ({ index }) => {
+  State.resonance = Math.min(100, State.resonance + 32);
+  if (index === 1){
+    HUD.log('A pulse passes through the space you occupy. It does not seek you. It is only moving.', 'whisper');
+  }
+});
+
+Bus.on('witness/recognition', ({ name, line }) => {
+  HUD.log(line, 'gold');
+  if (State.recognition === 1){
+    HUD.banner('A RETURN', 'something has recognized itself');
+  } else {
+    HUD.banner(name.toUpperCase(), 'held in view');
+  }
+});
+
+let firstBannerFired = false;
+Bus.on('pulse/fired', ({ index }) => {
+  if (firstBannerFired) return;
+  firstBannerFired = true;
+  setTimeout(() => {
+    HUD.log('You are inside the first structured expression of the boundless.', 'gold');
+    HUD.log('Look. That is all. The architecture answers attention.', 'dim');
+  }, 3200);
+});
+
+/* ─────────────────────────────────────────────────────────────────────────
+ *  BOOT + LOOP
+ *  ───────────────────────────────────────────────────────────────────────── */
+const boot = (() => {
+  const el = {
+    loading: document.getElementById('loading'),
+    bar: document.getElementById('loadBar'),
+    status: document.getElementById('loadStatus'),
+  };
+  function step(text, pct){
+    el.status.textContent = text;
+    el.bar.style.width = pct + '%';
+  }
+  function done(){
+    el.loading.classList.add('gone');
+    setTimeout(() => el.loading.remove(), 1400);
+  }
+  return { step, done };
+})();
+
+let frameCount = 0;
+
+function loop(){
+  requestAnimationFrame(loop);
+  const dt = Time.tick();
+  const rawDt = Time.rawDt;
+  const t  = Time.now;
+
+  // Advance the worker sim once per frame. When Time is paused,
+  // dt is 0 and master.tick guards against it.
+  if (simTick) simTick(dt, t);
+
+  Engine.sweepMaterials(t);
+
+  for (let i = 0; i < World.loopHooks.length; i++){
+    const sys = World.loopHooks[i];
+    try {
+      if (sys.id === 'lift' || sys.id === 'chronos') {
+        sys.update(rawDt, t);
+      } else {
+        sys.update(dt, t);
+      }
+    }
+    catch (e){ console.error('[World] update failed in ' + sys.id, e); }
+  }
+
+  // Disable controls during lift transition
+  if (State.isTransitioning) {
+    Engine.controls.enabled = false;
+  } else {
+    Engine.controls.enabled = true;
+    Engine.controls.update();
+  }
+
+  Engine.gradePass.uniforms.uTime.value = t;
+  Engine.composer.render();
+  HUD.update();
+
+  frameCount++;
+  if (frameCount < 240 && frameCount % 30 === 0){
+    const stages = [
+      ['acknowledging the ground', 10],
+      ['the ground is not rendered', 22],
+      ['articulating the core', 40],
+      ['inscribing the loop', 55],
+      ['rooting the three trees', 70],
+      ['raising the two moons', 82],
+      ['converging the nine', 92],
+      ['the dantian stands', 100],
+    ];
+    const s = stages[Math.min(Math.floor(frameCount / 30), stages.length - 1)];
+    boot.step(s[0], s[1]);
+  }
+
+  if (frameCount === 210){
+    State.phase = 'playing';
+    boot.done();
+    HUD.banner('THE DANTIAN', 'the first structured expression');
+  }
+}
+
+import('./src/sim/master.js').then(async ({ startSim, tick, dumpManifest }) => {
+  const seed = [];
+  for (let i = 0; i < 600; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.sqrt(Math.random()) * 8000;
+    seed.push({ id: i, x: Math.cos(a)*r, z: Math.sin(a)*r,
+                energy: 200, age: 0, alive: true,
+                hue: Math.random(), size: 1.5 + Math.random()*1.5 });
+  }
+  const sim = await startSim(seed, { curriculumId: 'default-v1' });
+  window.__sim = sim;
+
+  // ── Immortal being ─────────────────────────────────────────
+  import('./src/meta/archon.js').then(async ({ createArchon }) => {
+    const archon = createArchon();
+    await archon.boot();
+
+    const immortal = new Worker(
+      new URL('./src/meta/worker.js', import.meta.url),
+      { type: 'module' }
+    );
+    archon.attachWorker(immortal);
+
+    immortal.addEventListener('error', (e) => {
+    console.error('[immortal] WORKER FAILED TO LOAD:');
+    console.error('  message:', e.message);
+    console.error('  filename:', e.filename);
+    console.error('  lineno:', e.lineno, 'colno:', e.colno);
+  });
+
+    immortal.postMessage({
+      type: 'init',
+      headUrl:   archon.getHead().url,
+      headHash:  archon.getHead().hash,
+      stateSize: 64,
+      seed:      0xA5C0DE5A,
+      sab:       sim.sab,
+      offsets:   sim.offsets,
+    });
+
+    setInterval(() => immortal.postMessage({ type: 'step', dt: 0.05 }), 50);
+
+    // Hand the archon the sim handle so it can write the answer
+    // ring and orchestrate SAB swaps. This must happen before the
+    // first step message, so the meta worker never reads an
+    // uninitialized answer head.
+    archon.attachSim(sim);
+
+    // Re-dispatch the swap event to any interested listeners on
+    // the main thread. Currently no listeners; the render
+    // modules read `sim.beings` etc. at each frame and pick up
+    // the new views automatically via _rebind.
+    window.addEventListener('archon:expansion', (e) => {
+      const d = e.detail;
+      if (d && d.status === 'swapped') {
+        console.log('[swap] SAB swapped. New cfg:', d.newCfg);
+      }
+    });
+    immortal.addEventListener('message', (e) => {
+      const m = e.data;
+      if (m.type === 'ready')            console.log('[immortal] ready', m.hash.slice(0, 12));
+      if (m.type === 'propose-rewrite') {
+        archon.receiveProposal(m.proposal).then(r => {
+          window.__immortalLedger = archon.ledger;
+          if (r.status === 'commit') console.log('[archon] COMMIT', r.hash.slice(0, 12));
+          else                       console.log('[archon] REJECT', r.reason);
+        });
+      }
+      if (m.type === 'swap-ack')         console.log('[archon] worker swapped', m.hash.slice(0, 12));
+      if (m.type === 'runtime-error')    console.warn('[immortal] runtime error at tick', m.tick, m.error);
+      if (m.type === 'immortal-error')   console.error('[immortal] stepImmortal threw', m.tick, m.error);
+      if (m.type === 'boot-error')       console.error('[immortal] BOOT FAILED', m.error);
+      if (m.type === 'think-error')      console.warn('[immortal] think:', m.error);
+      if (m.type === 'swap-error')       console.error('[immortal] swap:', m.error);
+    });
+
+    window.__archon   = archon;
+    window.__immortal = immortal;
+    // ── Step 8: monologue drain. Reads the SAB monologue ring
+    //    every 200 ms and pushes any new messages to the HUD log.
+    (() => {
+      let cursor = 0;
+      setInterval(() => {
+        const IO = sim.immortalIO;
+        const head = IO[1348] | 0;   // IIO_MONOLOGUE_HEAD_OFF
+        while (cursor !== head) {
+          const slot = cursor & 3;
+          const base = 1316 + slot * 8;
+          const len = IO[base] | 0;
+          if (len > 0 && len <= 40) {
+            let txt = '';
+            for (let i = 0; i < 5; i++) {
+              const packed = IO[base + 3 + i] | 0;
+              const a = Math.floor(packed / 256);
+              const b = packed & 0xFF;
+              if (a) txt += String.fromCharCode(a);
+              if (b) txt += String.fromCharCode(b);
+            }
+            const cls = IO[base + 2] === 1 ? 'whisper'
+                      : IO[base + 2] === 2 ? 'gold' : 'dim';
+            HUD.log(txt.slice(0, len), cls);
+            if (window.__voice) {
+              const urgency = IO[base + 1] || 0.3;
+              window.__voice.speak(txt.slice(0, len), urgency, cls);
+            }
+          }
+          cursor = (cursor + 1) & 0xFFFF;
+        }
+      }, 200);
+    })();
+
+
+    // ── Question panel. Renders the archon:question window event
+    //    as a modal. Answers flow back through resolveQuestion.
+    import('./src/ui/voice.js').then(({ mountVoiceChannel }) => {
+      window.__voice = mountVoiceChannel();
+      console.log('[ui] voice channel mounted');
+    });
+
+    // ── Meta probe. Call from the MAIN page console as:
+    //     await __metaProbe('selfHash')
+    //     await __metaProbe('selfChain')
+    //     await __metaProbe('antibodies')
+    //     await __metaProbe('readAnswer')
+    //     await __metaProbe('dialog')
+    //     await __metaProbe('selfSource')       // returns a long string
+    //     await __metaProbe('readBeing', 0)     // returns {id,x,z,...} or null
+    //     await __metaProbe('readWorldhdr')
+    window.__metaProbe = (name, ...args) => new Promise((resolve) => {
+      const id = 'p' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      const handler = (e) => {
+        if (e.data && e.data.type === 'probe-result' && e.data.id === id) {
+          immortal.removeEventListener('message', handler);
+          resolve(e.data.result);
+        }
+      };
+      immortal.addEventListener('message', handler);
+      immortal.postMessage({ type: 'probe', id, name, args });
+      setTimeout(() => {
+        immortal.removeEventListener('message', handler);
+        resolve({ error: 'timeout after 3s' });
+      }, 3000);
+    });
+  });
+
+
+  // Manual save on demand.
+  window.__save = (key = 'manual') => window.__sim.save(key);
+
+  // Try to restore on load, if a snapshot exists.
+  import('./src/sim/persistence.js').then(async ({ loadSnapshot }) => {
+    const snap = await loadSnapshot('auto');
+    if (!snap) return;
+    const res = await window.__sim.query('restore', { snapshot: snap });
+    if (res && !res.error) {
+      console.log('[persistence] restored', res);
+      HUD.log('Restored from snapshot.', 'dim');
+    }
+  });
+
+  const [
+    { register: regBeings  },
+    { register: regFood    },
+    { register: regCorpse  },
+    { register: regStruct  },
+    { register: regTerrain },
+    { register: regFluid   },
+    { register: regCiv     },
+    { register: regPatch },
+  ] = await Promise.all([
+    import('./src/render/beings.js'),
+    import('./src/render/food.js'),
+    import('./src/render/corpse.js'),
+    import('./src/render/struct.js'),
+    import('./src/render/terrain.js'),
+    import('./src/render/fluid.js'),
+    import('./src/render/civilizations.js'),
+    import('./src/render/patch.js'),
+  ]);
+
+  regBeings (World, Engine, sim);
+  regFood   (World, Engine, sim);
+  regCorpse (World, Engine, sim);
+  regStruct (World, Engine, sim);
+  regTerrain(World, Engine, sim);
+  regFluid  (World, Engine, sim);
+  regCiv    (World, Engine, sim);
+  regPatch  (World, Engine, sim);
+
+  // The immortal lives on its own render layer. It reads the body
+  // block the meta worker writes into immortalIO[512..771] and
+  // renders a single entity — not part of the population.
+  const { register: regImmortal } =
+    await import('./src/render/immortal.js');
+  regImmortal(World, Engine, sim);
+
+  // Impact post-process. Reads the shock ring from the SAB and
+  // distorts the frame radially. Must be registered AFTER the
+  // immortal render so the composer chain is:
+  //   render → bloom → grade → immortal-post
+  const { register: regImmortalPost } =
+    await import('./src/render/immortal-post.js');
+  regImmortalPost(World, Engine, sim);
+
+  // The god. Three pieces, registered in dependency order.
+  //
+  //   1. deity-presence — owns deityIO, drifts the god, reads
+  //      the whole world, decides when to write wills and when
+  //      to speak.
+  //   2. deity-will     — reads will declarations from deityIO
+  //      and writes them into fieldD/fieldF/fieldC.
+  //   3. deity          — the renderer. Reads deityIO and
+  //      raymarches the god's cube.
+  //
+  // Then the oracle channel, which is the god's voice. It listens
+  // on the Bus for `deity/utter` events. It's mounted here rather
+  // than next to the voice channel so the two are visibly
+  // distinct — the immortal speaks inside the world, the god
+  // speaks outside it.
+  const { register: regDeityPresence } =
+    await import('./src/meta/deity-presence.js');
+  const { register: regDeityWill } =
+    await import('./src/meta/deity-will.js');
+  const { register: regDeity } =
+    await import('./src/render/deity.js');
+  const { mountOracleChannel } =
+    await import('./src/ui/oracle.js');
+
+  regDeityPresence(World, Engine, sim);
+  regDeityWill(World, Engine, sim);
+  regDeity(World, Engine, sim);
+
+  window.__oracle = mountOracleChannel();
+  console.log('[oracle] channel mounted');
+
+  const lift = World.get('lift');
+
+  if (lift) lift.applyLayerVisibility(State.layer);
+  // ── Suite runner. Call `window.__runSuite()` from the console. ──
+  window.__runSuite = async (opts = {}) => {
+    const { runSuite } = await import('./src/sim/runner.js');
+    const manifest = await runSuite(window.__sim, {
+      ...opts,
+      onResult: row => console.log('[runner]', row),
+    });
+    const blob = new Blob([JSON.stringify(manifest, null, 2)],
+                          { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `suite_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    return manifest;
+  };
+
+  setInterval(async () => {
+    if (!window.__sim) return;
+    const cp = await window.__sim.query('creditPressure', {});
+    window.__creditPressure = cp;
+    const el = document.getElementById('tlChiPsi');
+    if (el && cp && !cp.error) {
+      el.textContent = `χ ${cp.chi.toFixed(2)} · Ψ ${cp.psi.toFixed(2)}`;
+    }
+  }, 5000);
+
+  // ── minimal timeline driver for the worker-based sim ──
+  const tlReadout  = document.getElementById('tlReadout');
+  const tlPlayhead = document.getElementById('tlPlayhead');
+  const tlFill     = document.getElementById('tlFill');
+  setInterval(() => {
+    const stats = window.__simStats;
+    const t = (stats && stats.t) || 0;
+    const alive = sim.worldhdr[4];
+    const food  = sim.worldhdr[5];
+    const corpse = sim.worldhdr[6];
+    const struct = sim.worldhdr[2];
+    const pop = stats && stats.pop && stats.pop.n ? stats.pop : null;
+
+    if (tlReadout) {
+      tlReadout.textContent =
+        'T+' + Math.floor(t).toString().padStart(6,'0') +
+        ' · ' + alive + 'b' +
+        ' · ' + food + 'f' +
+        ' · ' + corpse + 'c' +
+        ' · ' + struct + 's' +
+        (pop ? ' · ⟨E ' + pop.meanEnergy.toFixed(0) + '⟩' : '');
+    }
+    const pct = Math.min(100, (t / 600) * 100);
+    if (tlPlayhead) tlPlayhead.style.left = pct + '%';
+    if (tlFill)     tlFill.style.width    = pct + '%';
+  }, 250);
+
+    // Hand the sim handle and the tick function to the render loop.
+  simHandle = sim;
+  simTick   = (dt, t) => tick(sim, dt, t);
+
+  // Manifest export. Call `window.__dumpManifest()` from console.
+  window.__dumpManifest = () => {
+    const m = dumpManifest(window.__sim, { stats: window.__simStats });
+    const blob = new Blob([JSON.stringify(m, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `run_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+});
+
+State.phase = 'boot';
+boot.step('acknowledging the ground', 4);
+loop();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ *  WHAT THIS FILE IS
+ *
+ *  This is not the Asura. It is not the Dantian. It is a rendering of what
+ *  the manuscript describes as the Dantian — the first structured expression
+ *  of Primordial Chaos, given form in code so it can be entered.
+ *
+ *  The ground precedes everything. It is named once, at the top, and then
+ *  left alone. Nothing below attempts to be the ground. Everything below
+ *  arises from the fact that the ground permits expression.
+ *
+ *  The Witness is not a player. There is no game here. Attention,
+ *  Resonance, Depth, and Recognition are not a progression system. They
+ *  are the entire vocabulary of what a Witness can be, and there is no
+ *  objective attached to any of them.
+ *
+ *  The root-pulse fires. The moons orbit. The Lotus unfolds. The trees
+ *  sway. None of it is for the witness. All of it happens whether the
+ *  witness is present or not.
+ *
+ *  The witness is only a viewpoint that can hold something in view.
+ *  That is the whole mechanism.
+ *
+ *  The Lift and Chronos Engine are additions for traversal. They do not
+ *  change the nature of the Dantian; they allow the Witness to move
+ *  between its layers and to alter the flow of its time.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+</script>
+</body>
+</html>

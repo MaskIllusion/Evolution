@@ -1,0 +1,1044 @@
+// src/render/immortal.js
+//
+// The immortal's AAA render layer.
+//
+// Three GPU-resident solvers, all driven by the SAB block the
+// meta worker writes:
+//
+//   1. SDF       — 64³ signed distance field, stored as an
+//                  8×8 atlas of 64×64 Z-slices in a 512×512
+//                  RGBA16F render target. Ping-ponged each frame
+//                  by the SDFUpdate full-screen pass.
+//
+//   2. Particles — 262 144 particles, position + velocity in two
+//                  ping-pong pairs of 512×512 RGBA32F render
+//                  targets. Emit + Sim passes.
+//
+//   3. Raymarch  — the surface. Full-screen quad raymarches the
+//                  SDF, shades as fiber-gated obsidian. No mesh.
+//
+// Plus: point-sprite particle render (reads particle RT directly
+// in the vertex shader) and a shock post-process that reads the
+// shock ring from the SAB.
+
+import * as THREE from 'three';
+
+// ── SAB layout — must match src/sim/shared-buffer.js ─────────
+const POSTURE_BASE  = 512;
+const STATE_BASE    = 520;
+const KINETICS_BASE = 772;
+const SHOCK_BASE    = 788;
+const SHOCK_HEAD    = 980;
+const SHOCK_COUNT   = 981;
+const SHOCK_SLOTS   = 16;
+const SHOCK_STRIDE  = 12;
+
+const AGITATION_OFF     = 1024;
+const FSM_OFF           = 1025;
+const FSM_META_OFF      = 1026;
+const TENDRIL_SEED_BASE = 1028;
+const TENDRIL_SEED_N    = 32;
+const SDF_PARAMS_BASE   = 1156;
+const EMITTER_POS_BASE  = 1164;
+const EMITTER_VEL_BASE  = 1168;
+const PARTICLE_PARAMS_BASE = 1172;
+const POST_PARAMS_BASE  = 1180;
+
+const WORLD_Y_OFFSET = -5950;
+const IMMORTAL_SCALE = 1500;
+
+// ── SDF atlas geometry ───────────────────────────────────────
+const SDF_RES   = 64;   // 64³ voxels
+const SDF_SLICE = 64;   // 64×64 per slice
+const SDF_GRID  = 8;    // 8×8 slices in the atlas
+const SDF_SIZE  = SDF_GRID * SDF_SLICE; // 512
+
+// ── Particle grid ────────────────────────────────────────────
+// 64×64 = 4096 particles. Enough for a visible wake at the
+// entity's scale. The previous 512² ran 262 144 fragment
+// invocations across four passes per frame and was the single
+// dominant cost. 64² = 64× less fragment work.
+const PART_RES = 64;
+
+export function register(World, Engine, sim) {
+  console.log('[immortal] register v2 · AAA symbiote/obscurus');
+
+  const bodyBlock = sim.immortalIO;
+
+  // ── Shared uniforms across all immortal passes ────────────
+  // These are the driving parameters. Updated once per frame
+  // from the SAB. Every shader reads from here.
+  const uCommon = {
+    uTime:       { value: 0 },
+    uAgitation:  { value: 0 },
+    uBodyPos:    { value: new THREE.Vector3() },
+    uBodyVel:    { value: new THREE.Vector3() },
+    uBodyScale:  { value: 4.0 },
+    uSpeed:      { value: 0 },
+    uSpeedNorm:  { value: 0 },
+    uTension:    { value: 0 },
+    uKinState:   { value: 0 },
+
+    // SDF params (block of 8)
+    uSdfNoiseScale:  { value: 3.2 },
+    uSdfNoiseSpeed:  { value: 0.5 },
+    uSdfAdvect:      { value: 0.55 },
+    uSdfDissipate:   { value: 0.985 },
+    uSdfSplatRadius: { value: 0.10 },
+    uSdfTearAmp:     { value: 0.05 },
+    uSdfTearFreq:    { value: 28.0 },
+    uSdfIso:         { value: 0.5 },
+
+    // Tendril seeds (vec4 × 32)
+    uTendrilSeeds: { value: Array.from({ length: TENDRIL_SEED_N },
+                       () => new THREE.Vector4()) },
+
+    // Shock ring (vec4 × 16, packed x,z,radius,strength)
+    uShocks:     { value: Array.from({ length: SHOCK_SLOTS },
+                       () => new THREE.Vector4()) },
+    uShockCount: { value: 0 },
+
+    // Emitter
+    uEmitterPos: { value: new THREE.Vector3() },
+    uEmitterVel: { value: new THREE.Vector3() },
+    uWakeBias:   { value: 0.3 },
+    uSpawnRate:  { value: 0.4 },
+
+    // Particle params
+    uParticleLifeSmoke: { value: 1.6 },
+    uParticleLifeEmber: { value: 0.35 },
+    uParticleSizeSmoke:{ value: 1.0 },
+    uParticleSizeEmber:{ value: 0.4 },
+    uTurbulence:        { value: 0.5 },
+    uSparkRate:         { value: 0 },
+  };
+
+  /* ═══════════════════════════════════════════════════════════
+   *  SDF ATLAS — 512×512 RGBA16F, ping-pong
+   * ═══════════════════════════════════════════════════════════ */
+
+  const rtOpts = {
+    type: THREE.HalfFloatType,
+    format: THREE.RGBAFormat,
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    wrapS: THREE.ClampToEdgeWrapping,
+    wrapT: THREE.ClampToEdgeWrapping,
+    depthBuffer: false,
+    stencilBuffer: false,
+    generateMipmaps: false,
+  };
+
+  let sdfRead  = new THREE.WebGLRenderTarget(SDF_SIZE, SDF_SIZE, rtOpts);
+  let sdfWrite = new THREE.WebGLRenderTarget(SDF_SIZE, SDF_SIZE, rtOpts);
+
+  // Initialize the SDF to a unit sphere: r = |p| - 1.
+  function initSDF() {
+    const data = new Uint16Array(SDF_SIZE * SDF_SIZE * 4);
+    for (let j = 0; j < SDF_SIZE; j++) {
+      for (let i = 0; i < SDF_SIZE; i++) {
+        const gx = Math.floor(i / SDF_SLICE);
+        const gy = Math.floor(j / SDF_SLICE);
+        const slice = gy * SDF_GRID + gx;
+        const lx = (i - gx * SDF_SLICE) / SDF_SLICE - 0.5;
+        const ly = (j - gy * SDF_SLICE) / SDF_SLICE - 0.5;
+        const lz = slice / SDF_RES - 0.5;
+        const r = Math.sqrt(lx * lx + ly * ly + lz * lz);
+        const d = r - 0.16; // sphere radius in normalized units
+        // Pack into half-float (r channel); the SDF doesn't
+        // need full float precision.
+        const idx = (j * SDF_SIZE + i) * 4;
+        data[idx + 0] = floatToHalf(d);
+      }
+    }
+    const tex = new THREE.DataTexture(data, SDF_SIZE, SDF_SIZE,
+                                      THREE.RGBAFormat, THREE.HalfFloatType);
+    tex.needsUpdate = true;
+    // Blit into both RTs via a full-screen quad pass.
+    // Simpler: create a DataTexture and copy via a helper pass.
+    // We use a tiny init pass.
+    const initMat = new THREE.ShaderMaterial({
+      uniforms: { tInit: { value: tex } },
+      vertexShader: `
+        varying vec2 vUv;
+        void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+      `,
+      fragmentShader: `
+        precision highp float;
+        uniform sampler2D tInit;
+        varying vec2 vUv;
+        void main(){ gl_FragColor = texture2D(tInit, vUv); }
+      `,
+      depthTest: false, depthWrite: false,
+    });
+    blit(initMat, sdfRead);
+    blit(initMat, sdfWrite);
+    tex.dispose();
+  }
+  // NOTE: initSDF() is called later, after the blit helper has
+  // been defined. Calling it here hits the temporal dead zone
+  // on `blitQuad` (a const) and throws ReferenceError.
+
+  /* ═══════════════════════════════════════════════════════════
+   *  SDF UPDATE — full-screen quad, ping-pong
+   * ═══════════════════════════════════════════════════════════ */
+
+
+  // GLSL helpers shared by SDFUpdate and Raymarcher.
+  const GLSL_NOISE = `
+    float hash13(vec3 p3){
+      p3 = fract(p3 * 0.1031);
+      p3 += dot(p3, p3.zyx + 31.32);
+      return fract((p3.x + p3.y) * p3.z);
+    }
+    float vnoise(vec3 p){
+      vec3 i = floor(p), f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      float n000 = hash13(i + vec3(0,0,0));
+      float n100 = hash13(i + vec3(1,0,0));
+      float n010 = hash13(i + vec3(0,1,0));
+      float n110 = hash13(i + vec3(1,1,0));
+      float n001 = hash13(i + vec3(0,0,1));
+      float n101 = hash13(i + vec3(1,0,1));
+      float n011 = hash13(i + vec3(0,1,1));
+      float n111 = hash13(i + vec3(1,1,1));
+      return mix(
+        mix(mix(n000,n100,f.x), mix(n010,n110,f.x), f.y),
+        mix(mix(n001,n101,f.x), mix(n011,n111,f.x), f.y), f.z);
+    }
+    float fbm3(vec3 p){
+      float v = 0.0, a = 0.5;
+      for (int i = 0; i < 3; i++){ v += a * vnoise(p); p *= 2.05; a *= 0.5; }
+      return v;
+    }
+    vec3 vectorNoise(vec3 p){
+      return vec3(
+        fbm3(p),
+        fbm3(p + vec3(31.4, 12.7, 89.1)),
+        fbm3(p + vec3(54.3, 77.5, 23.6)));
+    }
+    vec3 curlNoise(vec3 p){
+      const float e = 0.06;
+      vec3 px0 = vectorNoise(p - vec3(e,0,0));
+      vec3 px1 = vectorNoise(p + vec3(e,0,0));
+      vec3 py0 = vectorNoise(p - vec3(0,e,0));
+      vec3 py1 = vectorNoise(p + vec3(0,e,0));
+      vec3 pz0 = vectorNoise(p - vec3(0,0,e));
+      vec3 pz1 = vectorNoise(p + vec3(0,0,e));
+      return vec3(
+        (py1.z - py0.z) - (pz1.y - pz0.y),
+        (pz1.x - pz0.x) - (px1.z - px0.z),
+        (px1.y - px0.y) - (py1.x - py0.x)) / (2.0 * e);
+    }
+  `;
+
+  // Atlas encoding: given a voxel index (i,j,slice) inside the
+  // 64³ grid, return UV of the center of the voxel in the atlas.
+  const GLSL_ATLAS = `
+    // Decode atlas UV → voxel coordinates (in [0,64]).
+    vec3 atlasToVoxel(vec2 uv){
+      vec2 px = uv * ${SDF_SIZE}.0;
+      float gx = floor(px.x / ${SDF_SLICE}.0);
+      float gy = floor(px.y / ${SDF_SLICE}.0);
+      float slice = gy * ${SDF_GRID}.0 + gx;
+      vec2 local = (px - vec2(gx, gy) * ${SDF_SLICE}.0) / ${SDF_SLICE}.0;
+      return vec3(local * ${SDF_RES}.0, slice);
+    }
+    // Encode voxel → atlas UV (center of voxel).
+    vec2 voxelToAtlas(vec3 v){
+      v = clamp(v, vec3(0.0), vec3(${SDF_RES}.0 - 0.001));
+      float slice = floor(v.z);
+      float gx = mod(slice, ${SDF_GRID}.0);
+      float gy = floor(slice / ${SDF_GRID}.0);
+      vec2 local = fract(v.xy / ${SDF_RES}.0);
+      return (vec2(gx, gy) + local) / ${SDF_GRID}.0;
+    }
+    // Trilinear sample of the SDF atlas.
+    float sampleSDF(sampler2D tex, vec3 p){
+      vec3 v = clamp(p * ${SDF_RES}.0, vec3(0.5), vec3(${SDF_RES}.0 - 0.5));
+      vec3 v0 = floor(v - 0.5) + 0.5;
+      vec3 f  = v - v0;
+      float acc = 0.0;
+      for (int dz = 0; dz < 2; dz++)
+      for (int dy = 0; dy < 2; dy++)
+      for (int dx = 0; dx < 2; dx++){
+        vec3 vv = v0 + vec3(dx, dy, dz);
+        vec3 w = mix(1.0 - f, f, vec3(dx, dy, dz));
+        acc += texture2D(tex, voxelToAtlas(vv)).r * w.x * w.y * w.z;
+      }
+      return acc;
+    }
+  `;
+
+  const sdfUpdateMat = new THREE.ShaderMaterial({
+    uniforms: {
+      tPrev:        { value: sdfRead.texture },
+      uCommonRef:   uCommon,   // shader reads via references we set below
+      uTime:        uCommon.uTime,
+      uAgitation:   uCommon.uAgitation,
+      uBodyPos:     uCommon.uBodyPos,
+      uBodyVel:     uCommon.uBodyVel,
+      uBodyScale:   uCommon.uBodyScale,
+      uSpeedNorm:   uCommon.uSpeedNorm,
+      uSdfNoiseScale: uCommon.uSdfNoiseScale,
+      uSdfNoiseSpeed: uCommon.uSdfNoiseSpeed,
+      uSdfAdvect:     uCommon.uSdfAdvect,
+      uSdfDissipate:  uCommon.uSdfDissipate,
+      uSdfSplatRadius:uCommon.uSdfSplatRadius,
+      uSdfTearAmp:    uCommon.uSdfTearAmp,
+      uSdfTearFreq:   uCommon.uSdfTearFreq,
+      uTendrilSeeds:  uCommon.uTendrilSeeds,
+      uShocks:        uCommon.uShocks,
+      uShockCount:    uCommon.uShockCount,
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform sampler2D tPrev;
+      uniform float uTime, uAgitation;
+      uniform vec3  uBodyPos, uBodyVel;
+      uniform float uBodyScale, uSpeedNorm;
+      uniform float uSdfNoiseScale, uSdfNoiseSpeed, uSdfAdvect,
+                    uSdfDissipate, uSdfSplatRadius, uSdfTearAmp, uSdfTearFreq;
+      uniform vec4  uTendrilSeeds[${TENDRIL_SEED_N}];
+      uniform vec4  uShocks[${SHOCK_SLOTS}];
+      uniform float uShockCount;
+      varying vec2 vUv;
+
+      ${GLSL_NOISE}
+      ${GLSL_ATLAS}
+
+      void main(){
+        // Decode current voxel.
+        vec3 v = atlasToVoxel(vUv);
+        vec3 p = v / ${SDF_RES}.0;   // 0..1 in body-local space
+
+        // Advect: sample the previous SDF at the back-traced
+        // position. The velocity field is curl noise.
+        // Checkerboard skip: only update half the voxels per
+        // frame. The un-updated half keeps its previous value,
+        // which reads as a slight temporal softness on the
+        // surface — acceptable at this scale, and halves the
+        // cost of this pass.
+        vec3 pc = (p - 0.5) * 2.0;   // -1..1
+        float skip = mod(floor(vUv.x * 512.0) + floor(vUv.y * 512.0), 2.0);
+        float s;
+        if (skip < 0.5) {
+          vec3 turb = curlNoise(pc * uSdfNoiseScale + uTime * uSdfNoiseSpeed);
+          vec3 back = p - turb * uSdfAdvect * 0.06;
+          s = sampleSDF(tPrev, back);
+        } else {
+          s = texture2D(tPrev, vUv).r;
+        }
+
+        // Dissipate — much softer now so advected detail survives.
+        s *= uSdfDissipate;
+
+        // Base shape: a sphere whose radius is modulated by fbm.
+        // This is what makes the surface "breathe" instead of
+        // sitting as a hard sphere. The perturbation is large
+        // enough to be visible at raymarch scale.
+        float baseNoise = fbm3(pc * (uSdfNoiseScale * 0.6)
+                                 + uTime * uSdfNoiseSpeed * 0.4);
+        float r = length(pc * vec3(1.0, 0.72, 1.0));
+        float sphereRadius = 0.28
+                            + (baseNoise - 0.5) * (0.20 + 0.30 * uAgitation);
+        s = min(s, r - sphereRadius);
+
+        // Tendril splats. Smooth-min (smin) instead of hard min
+        // so tendrils blend into the surface rather than reading
+        // as separate balls. smin k controls blend width.
+        for (int i = 0; i < ${TENDRIL_SEED_N}; i++){
+          vec4 t = uTendrilSeeds[i];
+          if (t.w < 0.01) continue;
+          vec3 tip = t.xyz * (0.35 + 0.55 * t.w);
+          float d = length(pc - tip) - uSdfSplatRadius * (0.6 + t.w);
+          // Polynomial smin (iq). k ≈ 0.15 is a soft weld.
+          float k = 0.15 + 0.10 * uAgitation;
+          float h = clamp(0.5 + 0.5 * (d - s) / k, 0.0, 1.0);
+          s = mix(d, s, h) - k * h * (1.0 - h);
+        }
+
+        // Shockwave tears. Each shock is (x,z,radius,strength).
+        // It produces a radial band of displacement in the SDF.
+        for (int k = 0; k < ${SHOCK_SLOTS}; k++){
+          if (float(k) >= uShockCount) break;
+          vec4 sh = uShocks[k];
+          float dx = pc.x - sh.x;
+          float dz = pc.z - sh.y;
+          float d = sqrt(dx*dx + dz*dz);
+          float shell = d - sh.z * 0.5;
+          float g = exp(-(shell*shell) / (2.0 * 0.4 * 0.4));
+          s += uSdfTearAmp * g * sh.w * sin(uSdfTearFreq * d - uTime * 8.0);
+        }
+
+        // Surface displacement — the "living" micro-surface.
+        float n = fbm3(pc * 8.0 + uTime * 0.4);
+        s += (0.005 + 0.025 * uAgitation) * (n - 0.5);
+
+        gl_FragColor = vec4(s, 0.0, 0.0, 1.0);
+      }
+    `,
+    depthTest: false, depthWrite: false,
+  });
+
+  /* ═══════════════════════════════════════════════════════════
+   *  PARTICLE SOLVER — 2 ping-pong pairs
+   * ═══════════════════════════════════════════════════════════ */
+
+  const partOpts = {
+    type: THREE.FloatType,
+    format: THREE.RGBAFormat,
+    minFilter: THREE.NearestFilter,
+    magFilter: THREE.NearestFilter,
+    wrapS: THREE.ClampToEdgeWrapping,
+    wrapT: THREE.ClampToEdgeWrapping,
+    depthBuffer: false, stencilBuffer: false,
+    generateMipmaps: false,
+  };
+
+  let posRead  = new THREE.WebGLRenderTarget(PART_RES, PART_RES, partOpts);
+  let posWrite = new THREE.WebGLRenderTarget(PART_RES, PART_RES, partOpts);
+  let velRead  = new THREE.WebGLRenderTarget(PART_RES, PART_RES, partOpts);
+  let velWrite = new THREE.WebGLRenderTarget(PART_RES, PART_RES, partOpts);
+
+  // Zero-init all four.
+  function clearRT(rt) {
+    const prev = Engine.renderer.getRenderTarget();
+    Engine.renderer.setRenderTarget(rt);
+    Engine.renderer.clear(true, false, false);
+    Engine.renderer.setRenderTarget(prev);
+  }
+  [posRead, posWrite, velRead, velWrite].forEach(clearRT);
+
+  const particleEmitMat = new THREE.ShaderMaterial({
+    uniforms: {
+      tPos:        { value: posRead.texture },
+      tVel:        { value: velRead.texture },
+      uTime:       uCommon.uTime,
+      uEmitterPos: uCommon.uEmitterPos,
+      uEmitterVel: uCommon.uEmitterVel,
+      uWakeBias:   uCommon.uWakeBias,
+      uSpawnRate:  uCommon.uSpawnRate,
+      uTurbulence: uCommon.uTurbulence,
+      uSparkRate:  uCommon.uSparkRate,
+      uBodyScale:  uCommon.uBodyScale,
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform sampler2D tPos, tVel;
+      uniform float uTime;
+      uniform vec3  uEmitterPos, uEmitterVel;
+      uniform float uWakeBias, uSpawnRate, uTurbulence, uSparkRate, uBodyScale;
+      varying vec2 vUv;
+
+      ${GLSL_NOISE}
+
+      float rnd(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+
+      void main(){
+        vec4 pos = texture2D(tPos, vUv);
+        vec4 vel = texture2D(tVel, vUv);
+
+        // Fresh spawn if dead (life in w <= 0).
+        if (pos.w <= 0.0){
+          float roll = rnd(vUv + uTime);
+          if (roll > uSpawnRate) {
+            gl_FragColor = vec4(0.0);
+            return;
+          }
+          // Emit on a shell around the body, biased opposite velocity.
+          float ang = rnd(vUv + 31.4) * 6.2831853;
+          float ang2 = rnd(vUv + 89.1) * 3.14159 - 1.5708;
+          vec3 dir = vec3(cos(ang) * cos(ang2), sin(ang2), sin(ang) * cos(ang2));
+          vec3 back = -normalize(uEmitterVel + 1e-4);
+          vec3 spawnOffset = dir * uBodyScale * 1.1 + back * uWakeBias * uBodyScale;
+
+          vec3 p = uEmitterPos + spawnOffset;
+          // Particle type: 0=smoke, 1=ember, 2=negative
+          float typeRoll = rnd(vUv + 51.7);
+          float isEmber = step(0.75, typeRoll);
+          float isNeg   = step(0.95, typeRoll);
+
+          // Velocity: back-emission along the wake plus curl kick.
+          vec3 turb = curlNoise(p * 0.7) * uTurbulence;
+          vec3 v = back * (1.5 + isEmber * 6.0) + turb * 3.0 + dir * 1.2;
+          // Embers get an extra explosive kick.
+          v += dir * isEmber * 4.0;
+
+          float life = mix(1.2, 2.2, rnd(vUv + 7.3));
+          life *= (1.0 - isEmber * 0.75);
+          float flag = isNeg * 2.0 + isEmber;   // packed in w of vel
+
+          gl_FragColor = vec4(p, life);   // pos.w = remaining life
+          gl_FragColor = vec4(p, life);
+          // Velocity stored in second RT. Encode flag in sign of w.
+          // We write pos first, then vel in a second pass by using
+          // MRT — but WebGL2 without MRT in three.js needs two
+          // passes. Simpler: encode type in pos.w sign at end of
+          // life. For now, we accept single-channel type via a
+          // small hack: since life is always positive, we use
+          // floor(life * 8) & 3 to encode type.
+          return;
+        }
+
+        gl_FragColor = pos;
+      }
+    `,
+    depthTest: false, depthWrite: false,
+  });
+
+  // Because particle type needs a home, I'm going to encode it
+  // into the fractional part of `life`. The simulate pass reads
+  // it back. This avoids a second render target per particle.
+  // Type = floor(fract(life) * 4.0) gives 0,1,2,3.
+
+  const particleSimMat = new THREE.ShaderMaterial({
+    uniforms: {
+      tPos:        { value: posRead.texture },
+      tVel:        { value: velRead.texture },
+      uTime:       uCommon.uTime,
+      uEmitterPos: uCommon.uEmitterPos,
+      uBodyScale:  uCommon.uBodyScale,
+      uTurbulence: uCommon.uTurbulence,
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform sampler2D tPos, tVel;
+      uniform float uTime, uBodyScale, uTurbulence;
+      uniform vec3  uEmitterPos;
+      varying vec2 vUv;
+
+      ${GLSL_NOISE}
+
+      void main(){
+        vec4 pos = texture2D(tPos, vUv);
+        vec4 vel = texture2D(tVel, vUv);
+
+        if (pos.w <= 0.0){ gl_FragColor = vec4(0.0); return; }
+
+        // Decode type from the fractional part of pos.w.
+        float fractLife = fract(pos.w);
+        float type = floor(fractLife * 4.0);   // 0 smoke, 1 ember, 2 neg
+        float isEmber = step(0.5, type) * step(type, 1.5);
+        float isNeg   = step(1.5, type);
+
+        // Turbulence via curl noise.
+        vec3 turb = curlNoise(pos.xyz * 0.7 + uTime * 0.3) * uTurbulence;
+        vec3 v = vel.xyz + turb * 0.016;
+
+        // Buoyancy for smoke; gravity for embers.
+        v.y += isEmber * 0.0 + (1.0 - isEmber) * 0.4 * 0.016;
+
+        // Drag.
+        v *= (1.0 - 0.05 * (1.0 + isEmber * 2.0));
+
+        // Advance.
+        vec3 p = pos.xyz + v * 0.016;
+
+        // Kill if too far from body.
+        float d = length(p - uEmitterPos);
+        if (d > uBodyScale * 8.0) { gl_FragColor = vec4(0.0); return; }
+
+        // Decay life. Keep the type bits in the fraction.
+        float newLife = pos.w - 0.016;
+        if (newLife <= 0.0) { gl_FragColor = vec4(0.0); return; }
+        // Preserve type bits: newLife = floor + fraction with type.
+        float intPart = floor(newLife);
+        float fracType = (type + 0.125) / 4.0;
+        newLife = intPart + fracType;
+
+        gl_FragColor = vec4(p, newLife);
+        // Note: velocity is written by the caller via a second pass.
+      }
+    `,
+    depthTest: false, depthWrite: false,
+  });
+
+  // Velocity update — same input, writes to velWrite.
+  const particleVelMat = new THREE.ShaderMaterial({
+    uniforms: {
+      tPos:        { value: posRead.texture },
+      tVel:        { value: velRead.texture },
+      uTime:       uCommon.uTime,
+      uTurbulence: uCommon.uTurbulence,
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform sampler2D tPos, tVel;
+      uniform float uTime, uTurbulence;
+      varying vec2 vUv;
+
+      ${GLSL_NOISE}
+
+      void main(){
+        vec4 pos = texture2D(tPos, vUv);
+        vec4 vel = texture2D(tVel, vUv);
+        if (pos.w <= 0.0){ gl_FragColor = vec4(0.0); return; }
+
+        float fractLife = fract(pos.w);
+        float type = floor(fractLife * 4.0);
+        float isEmber = step(0.5, type) * step(type, 1.5);
+
+        vec3 turb = curlNoise(pos.xyz * 0.7 + uTime * 0.3) * uTurbulence;
+        vec3 v = vel.xyz + turb * 0.016;
+        v.y += (1.0 - isEmber) * 0.4 * 0.016;
+        v *= (1.0 - 0.05 * (1.0 + isEmber * 2.0));
+
+        gl_FragColor = vec4(v, 1.0);
+      }
+    `,
+    depthTest: false, depthWrite: false,
+  });
+
+  /* ═══════════════════════════════════════════════════════════
+   *  RAYMARCHER — the surface
+   * ═══════════════════════════════════════════════════════════ */
+
+  const raymarchMat = new THREE.ShaderMaterial({
+    uniforms: {
+      tSDF:        { value: sdfRead.texture },
+      uTime:       uCommon.uTime,
+      uAgitation:  uCommon.uAgitation,
+      uBodyPos:    uCommon.uBodyPos,
+      uBodyScale:  uCommon.uBodyScale,
+      uSpeedNorm:  uCommon.uSpeedNorm,
+      uSdfIso:     uCommon.uSdfIso,
+      uInvView:    { value: new THREE.Matrix4() },
+      uInvProj:    { value: new THREE.Matrix4() },
+      uCamPos:     { value: new THREE.Vector3() },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform sampler2D tSDF;
+      uniform float uTime, uAgitation, uBodyScale, uSpeedNorm, uSdfIso;
+      uniform vec3  uBodyPos;
+      uniform mat4  uInvView, uInvProj;
+      uniform vec3  uCamPos;
+      varying vec2 vUv;
+
+      ${GLSL_NOISE}
+      ${GLSL_ATLAS}
+
+      // Ray from the camera through a UV point.
+      void rayFromUV(vec2 uv, out vec3 ro, out vec3 rd){
+        vec4 clip = vec4(uv * 2.0 - 1.0, -1.0, 1.0);
+        vec4 view = uInvProj * clip;
+        view /= view.w;
+        vec4 world = uInvView * vec4(view.xyz, 0.0);
+        rd = normalize(world.xyz);
+        ro = uCamPos;
+      }
+
+      // Distance to the SDF at a world-space point.
+      // The SDF atlas is stored in 0..1 space. Body-local is
+      // -1..1. We map through both, or the raymarcher samples
+      // the wrong corner voxel and produces a box surface.
+      float sdfWorld(vec3 pw){
+        vec3 q = (pw - uBodyPos) / (uBodyScale * 0.4 * 1500.0); // -1..1
+        vec3 p = q * 0.5 + 0.5;                                  // 0..1
+        return sampleSDF(tSDF, p);
+      }
+
+      vec3 sdfNormal(vec3 pw){
+        // Epsilon must be large enough in world units to span
+        // adjacent SDF voxels. 64³ over 2400 world units = 37.5
+        // units per voxel. Half that is a safe gradient step.
+        float e = 20.0;
+        return normalize(vec3(
+          sdfWorld(pw + vec3(e,0,0)) - sdfWorld(pw - vec3(e,0,0)),
+          sdfWorld(pw + vec3(0,e,0)) - sdfWorld(pw - vec3(0,e,0)),
+          sdfWorld(pw + vec3(0,0,e)) - sdfWorld(pw - vec3(0,0,e))));
+      }
+
+      void main(){
+        vec3 ro, rd;
+        rayFromUV(vUv, ro, rd);
+
+        // AABB early-out. The immortal lives inside a box of
+        // side 2·2400 world units centered on uBodyPos. If the
+        // ray misses the box, skip the entire march. Most of
+        // the screen is not the immortal; this saves ~95% of
+        // raymarch cost on those pixels.
+        float BOX = uBodyScale * 0.4 * 1500.0;
+        vec3 bmin = uBodyPos - vec3(BOX);
+        vec3 bmax = uBodyPos + vec3(BOX);
+        vec3 t0 = (bmin - ro) / (rd + 1e-8);
+        vec3 t1 = (bmax - ro) / (rd + 1e-8);
+        vec3 tsmall = min(t0, t1);
+        vec3 tbig   = max(t0, t1);
+        float tEnter = max(max(tsmall.x, tsmall.y), tsmall.z);
+        float tExit  = min(min(tbig.x,   tbig.y),   tbig.z);
+        if (tExit < 0.0 || tEnter > tExit) discard;
+
+        // March from AABB entry.
+        //
+        // UNITS. sdfWorld() returns a NORMALIZED distance: one
+        // unit of SDF ≈ BOX world units. Convert to world when
+        // stepping, keep EPS/MIN_S normalized when comparing.
+        // Getting this wrong makes the marcher always "hit" on
+        // step 0 and produces the flat black back-wall.
+        float t = max(tEnter, 0.0);
+        float tMax = tExit;
+        bool hit = false;
+        vec3 p = ro;
+        // 1/64 ≈ 0.0156 per voxel. Half a voxel = 0.008.
+        float EPS   = 0.012;    // normalized
+        float MIN_S = 0.005;    // normalized
+        for (int i = 0; i < 128; i++){
+          p = ro + rd * t;
+          float d = sdfWorld(p);          // normalized
+          if (d < EPS) { hit = true; break; }
+          if (t > tMax) break;
+          // Convert step from normalized to world units.
+          t += max(d * BOX * 0.85, MIN_S * BOX);
+        }
+        if (!hit) discard;
+
+        vec3 N = sdfNormal(p);
+        vec3 V = normalize(ro - p);
+
+        // Fresnel rim.
+        float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+
+        // Fiber-gated specular — the "wet obsidian" feel.
+        vec3 keyDir = normalize(vec3(0.35, 0.85, 0.40));
+        vec3 keyCol = vec3(1.00, 0.92, 0.78);
+        vec3 rimDir = normalize(vec3(-0.55, 0.15, -0.82));
+        vec3 rimCol = vec3(0.28, 0.42, 0.90);
+
+        // Micro-tendril normal detail from the SDF gradient.
+        vec3 fiber = normalize(N + curlNoise((p - uBodyPos) * 4.0 + uTime * 0.3) * 0.35);
+        float fiberMix = abs(dot(N, fiber));
+
+        vec3 Hk = normalize(keyDir + V);
+        float spec = pow(max(dot(N, Hk), 0.0), mix(28.0, 320.0, fiberMix));
+        vec3 col = vec3(0.008, 0.008, 0.012) * max(dot(N, keyDir), 0.0);
+        col += keyCol * spec * (1.2 + fiberMix * 0.9);
+        col += rimCol * fres * (0.4 + fiberMix * 0.5);
+        col += vec3(0.15, 0.05, 0.25) * fres * 0.3;
+
+        // Emissive hotspots from agitation.
+        float heat = uAgitation * 0.6 + uSpeedNorm * 0.4;
+        col += vec3(1.0, 0.30, 0.05) * fres * heat * 0.5;
+
+        // Subtle subsurface tint.
+        col += vec3(0.02, 0.01, 0.04);
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.NormalBlending,
+  });
+
+  // A fullscreen quad mesh we reuse for all passes.
+  const fsQuad = new THREE.Mesh(
+    new THREE.PlaneGeometry(2, 2),
+    raymarchMat
+  );
+  fsQuad.frustumCulled = false;
+  // Render after the population and terrain so the immortal
+  // composites over them. Not a physical body — no depth
+  // interaction with the rest of the scene.
+  fsQuad.renderOrder = 900;
+  Engine.scene.add(fsQuad);
+
+  /* ═══════════════════════════════════════════════════════════
+   *  PARTICLE POINTS — vertex shader reads particle RT
+   * ═══════════════════════════════════════════════════════════ */
+
+  const PARTICLE_COUNT = PART_RES * PART_RES;
+  const particleGeo = new THREE.BufferGeometry();
+
+  // One dummy vertex per particle. Position is filled in by the
+  // vertex shader from the RT.
+  const positions = new Float32Array(PARTICLE_COUNT * 3);
+  const seeds     = new Float32Array(PARTICLE_COUNT * 2);
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    seeds[i * 2 + 0] = (i % PART_RES) / PART_RES;
+    seeds[i * 2 + 1] = Math.floor(i / PART_RES) / PART_RES;
+  }
+  particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  particleGeo.setAttribute('aSeed',    new THREE.BufferAttribute(seeds, 2));
+  particleGeo.setDrawRange(0, PARTICLE_COUNT);
+
+  const particleMat = new THREE.ShaderMaterial({
+    uniforms: {
+      tPos:        { value: posRead.texture },
+      uSizeSmoke:  uCommon.uParticleSizeSmoke,
+      uSizeEmber:  uCommon.uParticleSizeEmber,
+      uPixelRatio: { value: Engine.renderer.getPixelRatio() },
+      uScale:      { value: 900.0 },
+    },
+    vertexShader: `
+      attribute vec2 aSeed;
+      uniform sampler2D tPos;
+      uniform float uSizeSmoke, uSizeEmber, uPixelRatio, uScale;
+      varying float vLife;
+      varying float vType;
+      void main(){
+        vec4 P = texture2D(tPos, aSeed);
+        if (P.w <= 0.0){
+          gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+          gl_PointSize = 0.0;
+          return;
+        }
+        float lifeFrac = fract(P.w);
+        vType = floor(lifeFrac * 4.0);
+        vLife = clamp((P.w - floor(P.w)) / max(0.001, 1.0), 0.0, 1.0);
+
+        vec4 mv = viewMatrix * vec4(P.xyz, 1.0);
+        float dist = max(-mv.z, 1.0);
+        float baseSize = mix(uSizeSmoke, uSizeEmber, step(0.5, vType));
+        gl_PointSize = clamp(baseSize * uScale * uPixelRatio / dist, 1.5, 80.0);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      varying float vLife;
+      varying float vType;
+      void main(){
+        vec2 pp = gl_PointCoord - 0.5;
+        float r = length(pp);
+        if (r > 0.5) discard;
+        float mask = smoothstep(0.5, 0.05, r);
+
+        vec3 col;
+        float a;
+        if (vType < 0.5) {
+          // Smoke
+          col = vec3(0.04, 0.02, 0.07);
+          a = mask * vLife * 0.6;
+        } else if (vType < 1.5) {
+          // Ember
+          col = vec3(1.0, 0.42, 0.08) * (0.8 + 1.2 * vLife);
+          a = mask * pow(vLife, 0.7);
+        } else {
+          // Negative-space
+          col = vec3(0.55, 0.10, 0.90);
+          a = mask * vLife * 0.5;
+        }
+        gl_FragColor = vec4(col, a);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+
+  const particleMesh = new THREE.Points(particleGeo, particleMat);
+  particleMesh.frustumCulled = false;
+  Engine.scene.add(particleMesh);
+
+  /* ═══════════════════════════════════════════════════════════
+   *  BLIT HELPER — runs a material on a fullscreen quad
+   * ═══════════════════════════════════════════════════════════ */
+
+  const blitScene = new THREE.Scene();
+  const blitCam   = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const blitQuad  = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null);
+  blitQuad.frustumCulled = false;
+  blitScene.add(blitQuad);
+
+  function blit(material, target) {
+    blitQuad.material = material;
+    const prev = Engine.renderer.getRenderTarget();
+    Engine.renderer.setRenderTarget(target);
+    Engine.renderer.render(blitScene, blitCam);
+    Engine.renderer.setRenderTarget(prev);
+  }
+
+  // Now that blit + blitQuad exist, seed the SDF atlas with the
+  // initial unit-sphere distance field. Both sdfRead and sdfWrite
+  // get the same starting contents, so the first update() pass has
+  // valid data to advect from.
+  initSDF();
+
+
+  /* ═══════════════════════════════════════════════════════════
+   *  FRAME DRIVER
+   * ═══════════════════════════════════════════════════════════ */
+
+  function readBlock() {
+    // uBodyPos is written by the meta worker in sim space, where
+    // the immortal lives at y = 0. The population — and the
+    // immortal — render at world y = -5950. Apply the offset so
+    // the raymarcher's world-space comparisons land on the plane
+    // the entity actually occupies.
+    uCommon.uBodyPos.value.set(
+      bodyBlock[POSTURE_BASE + 0] || 0,
+      (bodyBlock[POSTURE_BASE + 1] || 0) + WORLD_Y_OFFSET,
+      bodyBlock[POSTURE_BASE + 2] || 0);
+    uCommon.uBodyVel.value.set(
+      bodyBlock[POSTURE_BASE + 3] || 0,
+      bodyBlock[POSTURE_BASE + 4] || 0,
+      bodyBlock[POSTURE_BASE + 5] || 0);
+    uCommon.uBodyScale.value  = bodyBlock[STATE_BASE + 3] || 4.0;
+    uCommon.uSpeed.value      = Math.hypot(
+      uCommon.uBodyVel.value.x, uCommon.uBodyVel.value.y, uCommon.uBodyVel.value.z);
+    uCommon.uSpeedNorm.value  = Math.min(1, uCommon.uSpeed.value / 3600);
+
+    uCommon.uAgitation.value  = bodyBlock[AGITATION_OFF] || 0;
+    uCommon.uTension.value    = bodyBlock[KINETICS_BASE + 15] || 0;
+    uCommon.uKinState.value   = bodyBlock[KINETICS_BASE + 0] | 0;
+
+    const S = SDF_PARAMS_BASE;
+    uCommon.uSdfNoiseScale.value  = bodyBlock[S + 0] || 3.2;
+    uCommon.uSdfNoiseSpeed.value  = bodyBlock[S + 1] || 0.5;
+    uCommon.uSdfAdvect.value      = bodyBlock[S + 2] || 0.55;
+    uCommon.uSdfDissipate.value   = bodyBlock[S + 3] || 0.985;
+    uCommon.uSdfSplatRadius.value = bodyBlock[S + 4] || 0.10;
+    uCommon.uSdfTearAmp.value     = bodyBlock[S + 5] || 0.05;
+    uCommon.uSdfTearFreq.value    = bodyBlock[S + 6] || 28.0;
+    uCommon.uSdfIso.value         = bodyBlock[S + 7] || 0.5;
+
+    for (let i = 0; i < TENDRIL_SEED_N; i++) {
+      const b = TENDRIL_SEED_BASE + i * 4;
+      uCommon.uTendrilSeeds.value[i].set(
+        bodyBlock[b + 0] || 0,
+        bodyBlock[b + 1] || 0,
+        bodyBlock[b + 2] || 0,
+        bodyBlock[b + 3] || 0);
+    }
+
+    uCommon.uEmitterPos.value.set(
+      bodyBlock[EMITTER_POS_BASE + 0] || 0,
+      bodyBlock[EMITTER_POS_BASE + 1] || 0,
+      bodyBlock[EMITTER_POS_BASE + 2] || 0);
+    uCommon.uSpawnRate.value = bodyBlock[EMITTER_POS_BASE + 3] || 0.4;
+    uCommon.uEmitterVel.value.set(
+      bodyBlock[EMITTER_VEL_BASE + 0] || 0,
+      bodyBlock[EMITTER_VEL_BASE + 1] || 0,
+      bodyBlock[EMITTER_VEL_BASE + 2] || 0);
+    uCommon.uWakeBias.value = bodyBlock[EMITTER_VEL_BASE + 3] || 0.3;
+
+    const Q = PARTICLE_PARAMS_BASE;
+    uCommon.uTurbulence.value        = bodyBlock[Q + 2] || 0.5;
+    uCommon.uSparkRate.value         = bodyBlock[Q + 3] || 0;
+    uCommon.uParticleLifeSmoke.value = bodyBlock[Q + 4] || 1.6;
+    uCommon.uParticleLifeEmber.value = bodyBlock[Q + 5] || 0.35;
+    uCommon.uParticleSizeSmoke.value = bodyBlock[Q + 6] || 1.0;
+    uCommon.uParticleSizeEmber.value = bodyBlock[Q + 7] || 0.4;
+
+    // Shock ring pack (x, z, radius, strength)
+    const head  = bodyBlock[SHOCK_HEAD]  | 0;
+    const count = Math.min(SHOCK_SLOTS, bodyBlock[SHOCK_COUNT] | 0);
+    uCommon.uShockCount.value = count;
+    for (let i = 0; i < SHOCK_SLOTS; i++) {
+      const v = uCommon.uShocks.value[i];
+      if (i >= count) { v.set(0, 0, 0, 0); continue; }
+      const slot = (head - 1 - i + SHOCK_SLOTS) % SHOCK_SLOTS;
+      const b = SHOCK_BASE + slot * SHOCK_STRIDE;
+      v.set(
+        bodyBlock[b + 0] || 0,   // x
+        bodyBlock[b + 2] || 0,   // z
+        bodyBlock[b + 6] || 0,   // radius
+        bodyBlock[b + 8] || 0);  // strength
+    }
+  }
+
+  // Public entry — this is what the render system calls each frame.
+  function update(dt, t) {
+    readBlock();
+    uCommon.uTime.value = t;
+
+    // Compute inverse matrices for the raymarcher.
+    const cam = Engine.camera;
+    raymarchMat.uniforms.uInvView.value.copy(cam.matrixWorld);
+    raymarchMat.uniforms.uInvProj.value.copy(cam.projectionMatrixInverse);
+    raymarchMat.uniforms.uCamPos.value.copy(cam.position);
+    // Note: raymarchMat's internal rayFromUV uses invProj then invView,
+    // which is the correct order for world-space ray construction.
+
+    // ── 1. SDF update ────────────────────────────────────────
+    sdfUpdateMat.uniforms.tPrev.value = sdfRead.texture;
+    blit(sdfUpdateMat, sdfWrite);
+    [sdfRead, sdfWrite] = [sdfWrite, sdfRead];
+    raymarchMat.uniforms.tSDF.value = sdfRead.texture;
+    particleMat.uniforms.tPos.value = posRead.texture;
+
+    // ── 2. Particle emit ─────────────────────────────────────
+    particleEmitMat.uniforms.tPos.value = posRead.texture;
+    particleEmitMat.uniforms.tVel.value = velRead.texture;
+    blit(particleEmitMat, posWrite);
+    // Copy vel through unchanged.
+    const copyVelMat = new THREE.ShaderMaterial({
+      uniforms: { tVel: { value: velRead.texture } },
+      vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+      fragmentShader: `precision highp float; uniform sampler2D tVel; varying vec2 vUv;
+                       void main(){ gl_FragColor = texture2D(tVel, vUv); }`,
+      depthTest: false, depthWrite: false,
+    });
+    blit(copyVelMat, velWrite);
+    [posRead, posWrite] = [posWrite, posRead];
+    [velRead, velWrite] = [velWrite, velRead];
+
+    // ── 3. Particle simulate ─────────────────────────────────
+    particleSimMat.uniforms.tPos.value = posRead.texture;
+    particleSimMat.uniforms.tVel.value = velRead.texture;
+    blit(particleSimMat, posWrite);
+    particleVelMat.uniforms.tPos.value = posRead.texture;
+    particleVelMat.uniforms.tVel.value = velRead.texture;
+    blit(particleVelMat, velWrite);
+    [posRead, posWrite] = [posWrite, posRead];
+    [velRead, velWrite] = [velWrite, velRead];
+
+    // ── 4. Publish textures for the render path ──────────────
+    particleMat.uniforms.tPos.value = posRead.texture;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+   *  SYSTEM REGISTRATION
+   * ═══════════════════════════════════════════════════════════ */
+
+  World.registerSystem('immortal-render', {
+    order: 55,
+    init() { this.mesh = fsQuad; },
+    update(dt, t) { update(dt, t); },
+  });
+
+  // fsQuad is added to the scene above; the raymarcher covers the
+  // full screen with depth-test enabled, so it renders behind
+  // everything else but writes proper depth for other geometry.
+
+  console.log('[immortal] registered');
+}
+
+// ── Half-float encoding for SDF init ─────────────────────────
+function floatToHalf(v) {
+  const f32 = new Float32Array(1);
+  const u32 = new Uint32Array(f32.buffer);
+  f32[0] = v;
+  const x = u32[0];
+  const sign = (x >> 16) & 0x8000;
+  let exp = (x >> 23) & 0xff;
+  let mant = x & 0x7fffff;
+  if (exp === 0xff) return sign | 0x7c00;
+  exp = exp - 127 + 15;
+  if (exp < 0) return sign;
+  if (exp >= 31) return sign | 0x7c00;
+  return sign | (exp << 10) | (mant >> 13);
+}
